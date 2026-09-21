@@ -203,11 +203,53 @@
     section { padding: 56px 0; }
     .founder { flex-direction: column; align-items: flex-start; }
   }
+
+  [hidden] { display: none !important; }
+
+  /* ---------- APO Army teaser (main page) ---------- */
+  .army-teaser { background: #14532D; color: #F2FBF5; }
+  .army-teaser .section-head p { color: #CDE8D6; }
+  .army-teaser h2 { color: #F2FBF5; }
+  .army-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; margin-bottom: 30px; }
+  .army-grid h3 { font-size: 32px; margin-bottom: 10px; color: #FFB020; }
+  .army-grid ul { margin: 0; padding-left: 20px; }
+  .army-grid li { margin-bottom: 8px; color: #E2F3E8; }
+
+  /* ---------- APO Army application page (green, opens in new tab) ---------- */
+  body.army-mode { background: #14532D; color: #F2FBF5; }
+  .army-page { padding: 0 0 70px; }
+  .army-top { padding: 22px 0; }
+  .army-top a { color: #CDE8D6; font-weight: 600; }
+  .army-title { font-size: clamp(56px, 12vw, 120px); font-weight: 800; text-transform: uppercase; line-height: .9; margin: 10px 0 14px; }
+  .army-sub { color: #CDE8D6; max-width: 36em; font-size: 20px; margin-bottom: 30px; }
+  .army-card { background: #F4FBF6; color: #10281B; border-radius: 14px; padding: 28px; max-width: 760px; border: 3px solid #FFB020; }
+  .army-card label { display: block; font-weight: 700; margin: 18px 0 6px; }
+  .army-card label small { font-weight: 400; color: #4C6656; }
+  .army-card input[type="text"], .army-card input[type="number"], .army-card select, .army-card textarea {
+    width: 100%; font: inherit; color: #10281B; background: #fff; border: 2px solid #B7D3C1; border-radius: 8px; padding: 12px 14px;
+  }
+  .army-card textarea { min-height: 130px; resize: vertical; }
+  .army-card input:focus, .army-card select:focus, .army-card textarea:focus { outline: 3px solid #FFB020; border-color: #14532D; }
+  .army-card .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; margin-top: 22px; }
+  .army-card .check input { margin-top: 5px; width: 20px; height: 20px; flex: none; }
+  .army-card .btn-primary { margin-top: 24px; width: 100%; font-size: 19px; background: #14532D; color: #fff; border-color: #14532D; }
+  .army-card .btn-primary:hover { filter: none; background: #0E3F21; }
+  .age-note { margin-top: 8px; padding: 10px 14px; background: #FFF3D6; border: 1px solid #F0C566; border-radius: 8px; font-size: 15px; color: #5A3E00; }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .form-msg { margin-top: 18px; padding: 14px 16px; border-radius: 8px; font-weight: 600; }
+  .form-msg.err { background: #FBE3E1; color: #8A1F19; border: 1px solid #E5A19C; }
+  .form-msg.ok { background: #DDF3E4; color: #0E4A25; border: 1px solid #8CCB9F; }
+  .copy-box { white-space: pre-wrap; background: #fff; border: 2px dashed #14532D; border-radius: 8px; padding: 12px; margin-top: 12px; font-weight: 400; font-size: 15px; max-height: 260px; overflow: auto; }
+  @media (max-width: 820px) {
+    .army-grid { grid-template-columns: 1fr; }
+    .army-card { padding: 20px; }
+  }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
+<div id="siteView">
 
 <header class="site-header">
   <div class="wrap bar">
@@ -221,6 +263,7 @@
       <a href="#work">Our work</a>
       <a href="#report">Report</a>
       <a href="#safe">Stay safe</a>
+      <a href="#army">Army</a>
       <a href="#rules">Rules</a>
       <a href="#faq">FAQ</a>
     </nav>
@@ -391,6 +434,36 @@
     </div>
   </section>
 
+  <section id="army" class="army-teaser">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Join the APO Army</h2>
+        <p>Our moderators keep APO safe every day. They deal with raids, spam and false reports, and they look after members. If you take child safety seriously and stay calm under pressure, apply.</p>
+      </div>
+      <div class="army-grid">
+        <div>
+          <h3>What moderators do</h3>
+          <ul>
+            <li>Watch chat and voice and remove harmful content</li>
+            <li>Report predators to the platform and authorities</li>
+            <li>Support members who have been targeted</li>
+            <li>Stop raids and spam, and enforce the rules fairly</li>
+          </ul>
+        </div>
+        <div>
+          <h3>What we look for</h3>
+          <ul>
+            <li>14 or older</li>
+            <li>Active regularly and reliable</li>
+            <li>Mature, honest and trustworthy</li>
+            <li>Evidence first, never doxxing or threats</li>
+          </ul>
+        </div>
+      </div>
+      <a class="btn btn-primary" href="#army-apply" target="_blank" rel="noopener">Apply to join the APO Army</a>
+    </div>
+  </section>
+
   <section id="faq" style="background: var(--surface); border-block: 1px solid var(--line);">
     <div class="wrap" style="max-width: 820px;">
       <div class="section-head">
@@ -441,6 +514,56 @@
   </div>
 </footer>
 
+</div><!-- /siteView -->
+
+<div id="armyView" class="army-page" hidden>
+  <div class="tape" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="army-top"><a href="#top">&larr; Back to the APO website</a></div>
+    <h1 class="army-title" style="font-family: var(--display)">APO Army</h1>
+    <p class="army-sub">Tell us why you want to be a moderator. Every application is read by staff. Be honest and specific.</p>
+
+    <div class="army-card">
+      <form id="armyForm" novalidate>
+        <div class="hp" aria-hidden="true"><label>Leave this empty <input type="text" name="website_url" tabindex="-1" autocomplete="off"></label></div>
+
+        <label for="a-discord">Your Discord username</label>
+        <input type="text" id="a-discord" name="discord" maxlength="60" required placeholder="e.g. guru">
+
+        <label for="a-age">Your age <small>(moderators must be 14 or older)</small></label>
+        <input type="number" id="a-age" name="age" min="1" max="120" inputmode="numeric" required>
+        <div class="age-note" id="ageNote" hidden>Moderators under 18 help with chat moderation only. They never investigate, contact suspected predators, or handle reports and evidence. That is done by adult staff.</div>
+
+        <label for="a-tz">Country / time zone</label>
+        <input type="text" id="a-tz" name="tz" maxlength="60" required placeholder="e.g. UK, GMT+1">
+
+        <label for="a-hours">How much time can you give each day?</label>
+        <select id="a-hours" name="hours" required>
+          <option value="">Choose one</option>
+          <option>Under 1 hour</option>
+          <option>1 to 2 hours</option>
+          <option>3 to 5 hours</option>
+          <option>More than 5 hours</option>
+        </select>
+
+        <label for="a-why">Why do you want to be a moderator? <small>(at least 50 characters)</small></label>
+        <textarea id="a-why" name="why" maxlength="900" required></textarea>
+
+        <label for="a-exp">Any moderation experience? <small>(optional)</small></label>
+        <textarea id="a-exp" name="exp" maxlength="900"></textarea>
+
+        <label for="a-scn">A member posts someone's home address and says "let's go get them". What do you do?</label>
+        <textarea id="a-scn" name="scenario" maxlength="900" required></textarea>
+
+        <label class="check"><input type="checkbox" name="agree" required> <span>I will follow the APO rules. I will not dox, threaten or harass anyone, and I will report predators through the official channels.</span></label>
+
+        <button class="btn btn-primary" type="submit" id="armySubmit">Send my application</button>
+        <div id="armyMsg" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
   // ---- EDIT THESE ----
   var LINKS = {
@@ -459,6 +582,105 @@
       a.addEventListener("click", function (e) { e.preventDefault(); });
       if (a.textContent.indexOf("soon") === -1) a.textContent += " (soon)";
     }
+  });
+
+
+  // ---- APO Army application ----
+  // Paste a Discord webhook URL here so applications post to a private staff channel.
+  // Leave it empty and applicants will get a "copy your application" box instead.
+  var APPLY_WEBHOOK = "";
+
+  function route() {
+    var apply = location.hash === "#army-apply";
+    document.getElementById("siteView").hidden = apply;
+    document.getElementById("armyView").hidden = !apply;
+    document.body.classList.toggle("army-mode", apply);
+    document.title = apply ? "APO Army – Moderator application" : "APO – Anti Pedos Only | Official Website";
+    if (apply) window.scrollTo(0, 0);
+  }
+  window.addEventListener("hashchange", route);
+  route();
+
+  var armyForm = document.getElementById("armyForm"), armyMsg = document.getElementById("armyMsg");
+  function showMsg(kind, text) {
+    armyMsg.innerHTML = "";
+    var d = document.createElement("div");
+    d.className = "form-msg " + kind;
+    d.textContent = text;
+    armyMsg.appendChild(d);
+    return d;
+  }
+  function showFallback(text) {
+    var d = showMsg("ok", "Copy your application and send it to a staff member in our Discord. Thank you for applying.");
+    var box = document.createElement("div");
+    box.className = "copy-box"; box.textContent = text;
+    d.appendChild(box);
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "btn btn-primary"; b.textContent = "Copy application";
+    b.addEventListener("click", function () {
+      try { navigator.clipboard.writeText(text).then(function () { b.textContent = "Copied!"; }); } catch (e) { b.textContent = "Select the text above and copy it"; }
+    });
+    d.appendChild(b);
+    if (LINKS.discord) {
+      var l = document.createElement("a");
+      l.href = LINKS.discord; l.target = "_blank"; l.rel = "noopener"; l.textContent = "Open the APO Discord";
+      l.style.display = "block"; l.style.marginTop = "12px";
+      d.appendChild(l);
+    }
+  }
+
+  document.getElementById("a-age").addEventListener("input", function () {
+    var v = parseInt(this.value, 10);
+    document.getElementById("ageNote").hidden = !(v >= 14 && v < 18);
+  });
+
+  armyForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = new FormData(armyForm);
+    if (f.get("website_url")) return; // bot trap
+    var get = function (k) { return String(f.get(k) || "").trim(); };
+    var age = parseInt(get("age"), 10);
+    if (!get("discord") || !get("tz") || !get("hours") || !get("scenario")) return showMsg("err", "Please fill in every required field.");
+    if (!(age >= 14)) return showMsg("err", "Moderators must be 14 or older. Thank you for your interest.");
+    if (get("why").length < 50) return showMsg("err", "Please write at least 50 characters about why you want to be a moderator.");
+    if (!f.get("agree")) return showMsg("err", "Please tick the agreement box.");
+    try {
+      var last = parseInt(localStorage.getItem("apo-army-last") || "0", 10);
+      if (Date.now() - last < 600000) return showMsg("err", "You already sent an application. Please wait 10 minutes before sending another.");
+    } catch (x) {}
+
+    var fields = [
+      ["Discord", get("discord")], ["Age", String(age)], ["Country / time zone", get("tz")],
+      ["Time per day", get("hours")], ["Under 18?", age < 18 ? "Yes (chat moderation only)" : "No"], ["Why moderator?", get("why")],
+      ["Experience", get("exp") || "None given"], ["Doxxing scenario answer", get("scenario")]
+    ];
+    var plain = "APO ARMY APPLICATION\n" + fields.map(function (p) { return p[0] + ": " + p[1]; }).join("\n");
+
+    if (!APPLY_WEBHOOK) { showFallback(plain); return; }
+
+    var btn = document.getElementById("armySubmit");
+    btn.disabled = true; btn.textContent = "Sending...";
+    fetch(APPLY_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "APO Army Applications",
+        allowed_mentions: { parse: [] },
+        embeds: [{
+          title: "New APO Army application", color: 3066993, timestamp: new Date().toISOString(),
+          fields: fields.map(function (p) { return { name: p[0], value: p[1].slice(0, 1000) || "N/A", inline: p[1].length < 40 }; })
+        }]
+      })
+    }).then(function (r) {
+      if (!r.ok) throw new Error("bad status");
+      try { localStorage.setItem("apo-army-last", String(Date.now())); } catch (x) {}
+      armyForm.reset();
+      showMsg("ok", "Application sent. Thank you! Staff will contact you on Discord.");
+    }).catch(function () {
+      showFallback(plain);
+    }).finally(function () {
+      btn.disabled = false; btn.textContent = "Send my application";
+    });
   });
 
   // Mobile menu
