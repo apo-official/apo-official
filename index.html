@@ -481,6 +481,10 @@
   }
 
 
+
+  .chat-tools .delete-msg-btn{background:#b42318!important;color:#fff!important;}
+  .chat-msg.deleting{opacity:.45;pointer-events:none;transition:.18s;}
+
   /* ---------- APO Community voice + premium UI ---------- */
   .chat-shell{backdrop-filter:blur(16px);background:
     radial-gradient(circle at 0 0,rgba(27,79,156,.15),transparent 34%),
@@ -1979,7 +1983,9 @@
         }
         const reply = m.replyTo ? '<div class="reply-box" data-jump="'+esc(m.replyTo.id||"")+'"><b>'+esc(m.replyTo.senderName||"Message")+'</b>'+esc(m.replyTo.text||"")+'</div>' : "";
         const tools = '<div class="chat-tools"><button class="reply-btn" type="button" data-reply-msg="'+d.id+'" data-reply-sender="'+esc(m.senderId)+'" data-reply-name="'+esc(n)+'" data-reply-text="'+esc((m.text||"Media message").slice(0,140))+'">Reply</button>' +
-          (m.senderId !== myId ? '<button type="button" data-report-msg="'+d.id+'" data-sender="'+esc(m.senderId)+'">Report</button><button type="button" data-block-msg="'+esc(m.senderId)+'">Block</button>' : '')+'</div>';
+          (m.senderId !== myId
+            ? '<button type="button" data-report-msg="'+d.id+'" data-sender="'+esc(m.senderId)+'">Report</button><button type="button" data-block-msg="'+esc(m.senderId)+'">Block</button>'
+            : '<button class="delete-msg-btn" type="button" data-delete-msg="'+d.id+'">Delete</button>')+'</div>';
         div.innerHTML = '<div class="who" data-mention-name="'+esc(n)+'">' + esc(n) + (pinged?' <span>• mentioned you</span>':'') + '</div>' +
           reply + (m.text ? '<div>'+renderTextWithMentions(m.text)+'</div>' : '') + media +
           '<div class="when">' + esc(fmtTime(m.createdAt)) + '</div>' + tools;
@@ -2228,8 +2234,27 @@
     const reply=e.target.closest("[data-reply-msg]");
     const mention=e.target.closest("[data-mention-name]");
     const jump=e.target.closest("[data-jump]");
+    const del=e.target.closest("[data-delete-msg]");
     const r=e.target.closest("[data-report-msg]");
     const b=e.target.closest("[data-block-msg]");
+    if(del){
+      if(!currentChat || !confirm("Delete this message?")) return;
+      const messageId=del.getAttribute("data-delete-msg");
+      const bubble=del.closest(".chat-msg");
+      if(bubble) bubble.classList.add("deleting");
+      try{
+        const ref=currentChat.type==="group"
+          ? doc(db,"groups",currentChat.id,"messages",messageId)
+          : doc(db,"friendships",currentChat.id,"messages",messageId);
+        await deleteDoc(ref);
+        if(replyingTo && replyingTo.id===messageId) clearReply();
+      }catch(err){
+        console.error(err);
+        if(bubble) bubble.classList.remove("deleting");
+        alert("Message couldn't be deleted.");
+      }
+      return;
+    }
     if(reply){ setReply(reply.getAttribute("data-reply-msg"),reply.getAttribute("data-reply-sender"),reply.getAttribute("data-reply-name"),reply.getAttribute("data-reply-text")); return; }
     if(mention){
       const tag="@"+mention.getAttribute("data-mention-name");
