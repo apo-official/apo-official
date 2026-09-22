@@ -402,6 +402,27 @@
   .comm-note { font-size: 13px; color: var(--muted); margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
   .comm-reserved-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
+
+  /* ---------- APO Community chat + group invites ---------- */
+  .comm-mini.chat { background: #1B4F9C; color: #fff; }
+  .comm-mini.invite { background: #FFB020; color: #10284A; }
+  .chat-shell { position: fixed; inset: 0; z-index: 120; background: var(--surface); color: var(--ink); display: flex; flex-direction: column; }
+  .chat-head { display: flex; align-items: center; gap: 10px; padding: calc(12px + env(safe-area-inset-top,0px)) 14px 12px; border-bottom: 1px solid var(--line); background: var(--hero-bg); color: var(--hero-ink); }
+  .chat-head strong { flex: 1; font-family: var(--display); font-size: 23px; }
+  .chat-head button { border: 1px solid rgba(255,255,255,.35); background: transparent; color: #fff; border-radius: 8px; padding: 8px 11px; font-weight: 700; cursor: pointer; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 9px; background: var(--bg); }
+  .chat-msg { max-width: min(78%, 560px); padding: 9px 11px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); align-self: flex-start; overflow-wrap: anywhere; }
+  .chat-msg.mine { align-self: flex-end; border-color: #1B4F9C; }
+  .chat-msg .who { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 2px; }
+  .chat-msg .when { font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .chat-compose { display: flex; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom,0px)); border-top: 1px solid var(--line); background: var(--surface); }
+  .chat-compose input { flex: 1; min-width: 0; font: inherit; padding: 11px 12px; border: 2px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); }
+  .chat-compose button { border: 0; border-radius: 9px; padding: 10px 16px; background: var(--amber); color: #10284A; font-weight: 800; cursor: pointer; }
+  .group-card { display: grid; gap: 8px; width: 100%; }
+  .group-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .group-members { font-size: 12px; color: var(--muted); }
+  .invite-picker { margin-top: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
@@ -849,10 +870,25 @@
       <input type="text" id="groupNameInput" maxlength="30" placeholder="New group name">
       <button class="comm-mini add" id="groupCreate" type="button">Create</button>
     </div>
+    <p class="comm-note" style="border:none;padding-top:0;margin-top:0">Group invites</p>
+    <ul class="comm-list" id="groupInviteList"></ul>
+    <p class="comm-note">Your groups</p>
     <ul class="comm-list" id="groupList"></ul>
   </div>
 
   <p class="comm-note">Guest names are public nicknames and do not have to be unique. Names like "Guru", "Staff" and "Admin" are reserved for the real team. Your browser gets a private anonymous Firebase identity automatically; clearing site data can create a new guest identity.</p>
+</div>
+
+<div class="chat-shell" id="chatShell" hidden>
+  <div class="chat-head">
+    <button id="chatBack" type="button">← Back</button>
+    <strong id="chatTitle">Chat</strong>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <form class="chat-compose" id="chatForm">
+    <input id="chatInput" maxlength="500" autocomplete="off" placeholder="Message…">
+    <button type="submit">Send</button>
+  </form>
 </div>
 
 <script>
@@ -1100,7 +1136,7 @@
   import {
     getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc,
     collection, addDoc, query, where, onSnapshot, orderBy, limit,
-    serverTimestamp, arrayUnion, arrayRemove
+    serverTimestamp, arrayUnion, arrayRemove, writeBatch
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -1285,12 +1321,16 @@
     }
   });
 
-  // ---- requests / friends / groups (live) ----
+  // ---- requests / friends / groups / chat (live) ----
   const reqIn = document.getElementById("reqIn");
   const reqOut = document.getElementById("reqOut");
   const friendList = document.getElementById("friendList");
   const groupList = document.getElementById("groupList");
+  const groupInviteList = document.getElementById("groupInviteList");
   const nameCache = {};
+  let friendIds = new Set();
+  let currentChat = null;
+  let stopChat = null;
 
   async function nameOf(id) {
     if (nameCache[id]) return nameCache[id];
@@ -1299,6 +1339,10 @@
       nameCache[id] = s.exists() ? (s.data().name || "Guest") : "Guest";
     } catch (e) { nameCache[id] = "Guest"; }
     return nameCache[id];
+  }
+
+  function friendshipDocId(a, b) {
+    return a < b ? a + "_" + b : b + "_" + a;
   }
 
   function startLiveData() {
@@ -1336,52 +1380,73 @@
     const merged = {};
     function paintFriends() {
       const ids = Object.keys(merged);
+      friendIds = new Set(ids.map(k => merged[k]));
       if (!ids.length) {
         friendList.innerHTML = '<li class="comm-empty">No friends yet. Add some in Find!</li>';
         return;
       }
       friendList.innerHTML = "";
-      ids.forEach(function (friendshipId) {
-        const other = merged[friendshipId];
+      ids.forEach(function (friendshipKey) {
+        const other = merged[friendshipKey];
         nameOf(other).then(function (n) {
+          const rawId = friendshipKey.replace(/^[ab]:/, "");
           const li = document.createElement("li");
           li.className = "comm-row";
           li.innerHTML = '<div class="comm-avatar">' + esc(initial(n)) + '</div><div class="name">' + esc(n) +
             ' <span class="sub">#' + esc(other.slice(0, 5)) + '</span></div>' +
-            '<button class="comm-mini danger" data-unfriend="' + friendshipId + '">Remove</button>';
+            '<button class="comm-mini chat" data-fchat="' + rawId + '" data-other="' + esc(other) + '">Chat</button>' +
+            '<button class="comm-mini danger" data-unfriend="' + friendshipKey + '">Remove</button>';
           friendList.appendChild(li);
         });
       });
     }
 
     onSnapshot(query(collection(db, "friendships"), where("a", "==", myId)), function (snap) {
-      Object.keys(merged).forEach(k => { if (merged[k] && k.startsWith("a:")) delete merged[k]; });
+      Object.keys(merged).forEach(k => { if (k.startsWith("a:")) delete merged[k]; });
       snap.forEach(function (d) { merged["a:" + d.id] = d.data().b; });
       paintFriends();
     });
     onSnapshot(query(collection(db, "friendships"), where("b", "==", myId)), function (snap) {
-      Object.keys(merged).forEach(k => { if (merged[k] && k.startsWith("b:")) delete merged[k]; });
+      Object.keys(merged).forEach(k => { if (k.startsWith("b:")) delete merged[k]; });
       snap.forEach(function (d) { merged["b:" + d.id] = d.data().a; });
       paintFriends();
     });
 
-    onSnapshot(query(collection(db, "groups"), orderBy("createdAt", "desc"), limit(40)), function (snap) {
-      groupList.innerHTML = "";
-      if (snap.empty) { groupList.innerHTML = '<li class="comm-empty">No groups yet. Start one!</li>'; return; }
-      snap.forEach(function (d) {
-        const g = d.data();
-        const members = g.members || [];
-        const inIt = members.includes(myId);
-        const isOwner = g.ownerId === myId;
+    onSnapshot(query(collection(db, "group_invites"), where("toId", "==", myId), where("status", "==", "pending")), async function (snap) {
+      groupInviteList.innerHTML = "";
+      if (snap.empty) { groupInviteList.innerHTML = '<li class="comm-empty">No group invites.</li>'; return; }
+      for (const d of snap.docs) {
+        const data = d.data();
+        const ownerName = await nameOf(data.fromId);
         const li = document.createElement("li");
         li.className = "comm-row";
-        li.innerHTML = '<div class="comm-avatar">' + esc(initial(g.name)) + '</div>' +
-          '<div class="name">' + esc(g.name) + ' <span class="sub">' + members.length + ' member' + (members.length === 1 ? "" : "s") + '</span></div>' +
-          (isOwner ? '<button class="comm-mini danger" data-delgroup="' + d.id + '">Delete</button>' :
-           inIt ? '<button class="comm-mini leave" data-leave="' + d.id + '">Leave</button>' :
-                  '<button class="comm-mini add" data-join="' + d.id + '">Join</button>');
+        li.innerHTML = '<div class="name"><b>' + esc(data.groupName || "Group") + '</b><div class="sub">Invited by ' + esc(ownerName) + '</div></div>' +
+          '<button class="comm-mini ok" data-gaccept="' + d.id + '" data-gid="' + esc(data.groupId) + '">Accept</button>' +
+          '<button class="comm-mini no" data-gdecline="' + d.id + '">Decline</button>';
+        groupInviteList.appendChild(li);
+      }
+    });
+
+    onSnapshot(query(collection(db, "groups"), where("members", "array-contains", myId), limit(40)), async function (snap) {
+      groupList.innerHTML = "";
+      if (snap.empty) { groupList.innerHTML = '<li class="comm-empty">You are not in any groups yet.</li>'; return; }
+      for (const d of snap.docs) {
+        const g = d.data();
+        const members = g.members || [];
+        const isOwner = g.ownerId === myId;
+        const names = await Promise.all(members.slice(0, 12).map(nameOf));
+        const li = document.createElement("li");
+        li.className = "comm-row";
+        li.innerHTML =
+          '<div class="group-card"><div><b>' + esc(g.name) + '</b> <span class="sub">' + members.length + ' member' + (members.length === 1 ? "" : "s") + '</span></div>' +
+          '<div class="group-members">' + esc(names.join(", ")) + (members.length > 12 ? "…" : "") + '</div>' +
+          '<div class="group-actions">' +
+          '<button class="comm-mini chat" data-gchat="' + d.id + '" data-gname="' + esc(g.name) + '">Group Chat</button>' +
+          (isOwner ? '<button class="comm-mini invite" data-inviteopen="' + d.id + '">Add member</button><button class="comm-mini danger" data-delgroup="' + d.id + '">Delete</button>' :
+                     '<button class="comm-mini leave" data-leave="' + d.id + '">Leave</button>') +
+          '</div><div class="invite-picker" id="invite-' + d.id + '" hidden></div></div>';
         groupList.appendChild(li);
-      });
+      }
     });
   }
 
@@ -1421,13 +1486,20 @@
   });
 
   friendList.addEventListener("click", async function (e) {
-    const b = e.target.closest("[data-unfriend]");
-    if (!b) return;
-    b.disabled = true;
+    const chat = e.target.closest("[data-fchat]");
+    const remove = e.target.closest("[data-unfriend]");
+    if (chat) {
+      const other = chat.getAttribute("data-other");
+      const n = await nameOf(other);
+      openChat("friend", chat.getAttribute("data-fchat"), n);
+      return;
+    }
+    if (!remove) return;
+    remove.disabled = true;
     try {
-      const rawId = b.getAttribute("data-unfriend").replace(/^[ab]:/, "");
+      const rawId = remove.getAttribute("data-unfriend").replace(/^[ab]:/, "");
       await deleteDoc(doc(db, "friendships", rawId));
-    } catch (err) { console.error(err); b.disabled = false; }
+    } catch (err) { console.error(err); remove.disabled = false; }
   });
 
   const groupNameInput = document.getElementById("groupNameInput");
@@ -1453,30 +1525,160 @@
     }
   });
 
-  groupList.addEventListener("click", async function (e) {
-    const join = e.target.closest("[data-join]");
-    const leave = e.target.closest("[data-leave]");
-    const del = e.target.closest("[data-delgroup]");
+  groupInviteList.addEventListener("click", async function (e) {
+    const yes = e.target.closest("[data-gaccept]");
+    const no = e.target.closest("[data-gdecline]");
     try {
-      if (join) {
-        join.disabled = true;
-        await updateDoc(doc(db, "groups", join.getAttribute("data-join")), {
+      if (yes) {
+        yes.disabled = true;
+        const inviteRef = doc(db, "group_invites", yes.getAttribute("data-gaccept"));
+        const inv = await getDoc(inviteRef);
+        if (!inv.exists() || inv.data().toId !== myId || inv.data().status !== "pending") throw new Error("Invalid invite");
+        await updateDoc(doc(db, "groups", yes.getAttribute("data-gid")), {
           members: arrayUnion(myId), updatedAt: serverTimestamp()
         });
+        await updateDoc(inviteRef, { status: "accepted", respondedAt: serverTimestamp() });
+      } else if (no) {
+        no.disabled = true;
+        await updateDoc(doc(db, "group_invites", no.getAttribute("data-gdecline")), {
+          status: "declined", respondedAt: serverTimestamp()
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't update that invite.");
+      if (yes) yes.disabled = false;
+      if (no) no.disabled = false;
+    }
+  });
+
+  groupList.addEventListener("click", async function (e) {
+    const chat = e.target.closest("[data-gchat]");
+    const inviteOpen = e.target.closest("[data-inviteopen]");
+    const inviteUser = e.target.closest("[data-inviteuser]");
+    const leave = e.target.closest("[data-leave]");
+    const del = e.target.closest("[data-delgroup]");
+
+    try {
+      if (chat) {
+        openChat("group", chat.getAttribute("data-gchat"), chat.getAttribute("data-gname"));
+      } else if (inviteOpen) {
+        const gid = inviteOpen.getAttribute("data-inviteopen");
+        const box = document.getElementById("invite-" + gid);
+        box.hidden = !box.hidden;
+        if (!box.hidden) {
+          box.innerHTML = '<div class="comm-empty">Loading friends…</div>';
+          const g = await getDoc(doc(db, "groups", gid));
+          if (!g.exists() || g.data().ownerId !== myId) return;
+          const members = new Set(g.data().members || []);
+          const choices = [...friendIds].filter(id => !members.has(id));
+          if (!choices.length) { box.innerHTML = '<div class="comm-empty">No friends available to invite.</div>'; return; }
+          box.innerHTML = "";
+          for (const id of choices) {
+            const n = await nameOf(id);
+            const row = document.createElement("div");
+            row.className = "comm-row";
+            row.innerHTML = '<div class="name">' + esc(n) + '</div><button class="comm-mini invite" data-inviteuser="' + esc(id) + '" data-gid="' + gid + '">Invite</button>';
+            box.appendChild(row);
+          }
+        }
+      } else if (inviteUser) {
+        inviteUser.disabled = true;
+        const gid = inviteUser.getAttribute("data-gid");
+        const toId = inviteUser.getAttribute("data-inviteuser");
+        const g = await getDoc(doc(db, "groups", gid));
+        if (!g.exists() || g.data().ownerId !== myId) throw new Error("Not group owner");
+        const inviteId = gid + "_" + toId;
+        await setDoc(doc(db, "group_invites", inviteId), {
+          groupId: gid, groupName: g.data().name, fromId: myId, toId,
+          status: "pending", createdAt: serverTimestamp()
+        });
+        inviteUser.textContent = "Invited";
       } else if (leave) {
         leave.disabled = true;
         await updateDoc(doc(db, "groups", leave.getAttribute("data-leave")), {
           members: arrayRemove(myId), updatedAt: serverTimestamp()
         });
       } else if (del) {
+        if (!confirm("Delete this group?")) return;
         del.disabled = true;
         await deleteDoc(doc(db, "groups", del.getAttribute("data-delgroup")));
       }
     } catch (err) {
       console.error(err);
-      if (join) join.disabled = false;
-      if (leave) leave.disabled = false;
-      if (del) del.disabled = false;
+      alert("That action didn't work. Check Firestore rules.");
+      [inviteUser, leave, del].forEach(b => { if (b) b.disabled = false; });
+    }
+  });
+
+  // ---- chat ----
+  const chatShell = document.getElementById("chatShell");
+  const chatBack = document.getElementById("chatBack");
+  const chatTitle = document.getElementById("chatTitle");
+  const chatMessages = document.getElementById("chatMessages");
+  const chatForm = document.getElementById("chatForm");
+  const chatInput = document.getElementById("chatInput");
+
+  function fmtTime(ts) {
+    try {
+      if (!ts || !ts.toDate) return "";
+      return ts.toDate().toLocaleString([], { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+    } catch (e) { return ""; }
+  }
+
+  function closeChat() {
+    if (stopChat) stopChat();
+    stopChat = null;
+    currentChat = null;
+    chatShell.hidden = true;
+    chatMessages.innerHTML = "";
+  }
+
+  function openChat(type, id, title) {
+    if (stopChat) stopChat();
+    currentChat = { type, id };
+    chatTitle.textContent = type === "group" ? "👥 " + title : "💬 " + title;
+    chatShell.hidden = false;
+    chatMessages.innerHTML = '<div class="comm-empty">Loading messages…</div>';
+    const col = type === "group"
+      ? collection(db, "groups", id, "messages")
+      : collection(db, "friendships", id, "messages");
+    stopChat = onSnapshot(query(col, orderBy("createdAt", "asc"), limit(100)), async function (snap) {
+      chatMessages.innerHTML = "";
+      for (const d of snap.docs) {
+        const m = d.data();
+        const n = await nameOf(m.senderId);
+        const div = document.createElement("div");
+        div.className = "chat-msg" + (m.senderId === myId ? " mine" : "");
+        div.innerHTML = '<div class="who">' + esc(n) + '</div><div>' + esc(m.text || "") + '</div><div class="when">' + esc(fmtTime(m.createdAt)) + '</div>';
+        chatMessages.appendChild(div);
+      }
+      if (snap.empty) chatMessages.innerHTML = '<div class="comm-empty">No messages yet. Say hi!</div>';
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }, function (err) {
+      console.error(err);
+      chatMessages.innerHTML = '<div class="comm-empty">Chat could not load. Check Firestore rules.</div>';
+    });
+    setTimeout(() => chatInput.focus(), 50);
+  }
+
+  chatBack.addEventListener("click", closeChat);
+
+  chatForm.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const msg = chatInput.value.trim();
+    if (!msg || !currentChat || !myId) return;
+    if (msg.length > 500) return;
+    chatInput.value = "";
+    try {
+      const col = currentChat.type === "group"
+        ? collection(db, "groups", currentChat.id, "messages")
+        : collection(db, "friendships", currentChat.id, "messages");
+      await addDoc(col, { senderId: myId, text: msg, createdAt: serverTimestamp() });
+    } catch (err) {
+      console.error(err);
+      chatInput.value = msg;
+      alert("Message couldn't send. Check Firestore rules.");
     }
   });
 
