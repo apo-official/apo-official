@@ -480,6 +480,34 @@
     .chat-msg{max-width:88%;}
   }
 
+
+  /* ---------- APO Community voice + premium UI ---------- */
+  .chat-shell{backdrop-filter:blur(16px);background:
+    radial-gradient(circle at 0 0,rgba(27,79,156,.15),transparent 34%),
+    radial-gradient(circle at 100% 100%,rgba(255,176,32,.12),transparent 35%),var(--bg);}
+  .chat-head{min-height:64px;box-shadow:0 8px 28px rgba(0,0,0,.08);z-index:2;}
+  .chat-head strong{font-size:18px;letter-spacing:.2px;}
+  .chat-side{background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);}
+  .chat-side .side-card{transition:.18s transform,.18s box-shadow;}
+  .chat-side .side-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08);}
+  .chat-compose{box-shadow:0 -8px 28px rgba(0,0,0,.06);padding:11px 14px;}
+  .chat-compose input{border-radius:999px!important;padding-left:16px!important;}
+  .chat-compose button{border-radius:999px!important;}
+  .chat-msg{border-radius:16px!important;}
+  .chat-msg.mine{border-bottom-right-radius:5px!important;}
+  .chat-msg:not(.mine){border-bottom-left-radius:5px!important;}
+  .call-overlay{position:fixed;inset:0;z-index:220;background:rgba(5,10,20,.82);backdrop-filter:blur(18px);display:grid;place-items:center;padding:18px;}
+  .call-overlay[hidden]{display:none!important;}
+  .call-panel{width:min(420px,100%);border:1px solid rgba(255,255,255,.15);border-radius:26px;padding:28px;text-align:center;background:linear-gradient(160deg,#111b31,#172848);color:#fff;box-shadow:0 28px 80px rgba(0,0,0,.45);}
+  .call-avatar{width:86px;height:86px;border-radius:50%;display:grid;place-items:center;margin:0 auto 14px;background:linear-gradient(135deg,#1B4F9C,#FFB020);font:700 32px var(--display);box-shadow:0 0 0 8px rgba(255,255,255,.06);}
+  .call-panel h3{font-size:28px;margin:5px 0;}
+  .call-panel p{opacity:.75;margin:5px 0 18px;}
+  .call-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .call-actions button{border:0;border-radius:999px;padding:12px 18px;font-weight:800;cursor:pointer;}
+  .call-accept{background:#20a464;color:#fff}.call-end{background:#d92d20;color:#fff}.call-mute{background:#fff;color:#172848}
+  .call-pulse{animation:callPulse 1.5s infinite;} @keyframes callPulse{50%{transform:scale(1.06);box-shadow:0 0 0 16px rgba(255,255,255,.04)}}
+  .online-dot{width:8px;height:8px;border-radius:50%;background:#20a464;display:inline-block;margin-right:5px;}
+
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
@@ -950,7 +978,7 @@
   <div class="chat-head">
     <button id="chatBack" type="button">← Back</button>
     <strong id="chatTitle">Chat</strong>
-    <div class="head-actions"><button id="callSoon" type="button" title="Voice calls coming later">☎ Voice call</button></div>
+    <div class="head-actions"><button id="voiceCallBtn" type="button" title="Start voice call">☎ Voice call</button></div>
   </div>
   <div class="chat-layout">
     <aside class="chat-side">
@@ -975,6 +1003,20 @@
       <div class="side-card"><b>Safety</b><span class="voice-call-note">Block and report controls stay available on messages.</span></div>
       <div class="side-card"><b>Voice calls</b><span class="voice-call-note">Coming later. Voice messages work now.</span></div>
     </aside>
+  </div>
+</div>
+
+<div class="call-overlay" id="voiceCallOverlay" hidden>
+  <div class="call-panel">
+    <div class="call-avatar call-pulse" id="voiceCallAvatar">A</div>
+    <h3 id="voiceCallName">Voice call</h3>
+    <p id="voiceCallStatus">Connecting…</p>
+    <audio id="voiceRemoteAudio" autoplay></audio>
+    <div class="call-actions">
+      <button class="call-accept" id="voiceAccept" type="button" hidden>Accept</button>
+      <button class="call-mute" id="voiceMute" type="button" hidden>Mute</button>
+      <button class="call-end" id="voiceEnd" type="button">End</button>
+    </div>
   </div>
 </div>
 
@@ -1533,6 +1575,7 @@
   function startLiveData() {
     if (liveStarted || !myId) return;
     liveStarted = true;
+    watchIncomingCalls();
     onSnapshot(collection(db, "blocks", myId, "users"), async function(snap) {
       blockedIds.clear(); blockedList.innerHTML="";
       if(snap.empty){ blockedList.innerHTML='<li class="comm-empty">You have not blocked anyone.</li>'; return; }
@@ -1841,12 +1884,10 @@
   const replyPreview = document.getElementById("replyPreview");
   const replyCopy = document.getElementById("replyCopy");
   const replyCancel = document.getElementById("replyCancel");
-  const callSoon = document.getElementById("callSoon");
   let replyingTo = null;
   let mediaRecorder = null, recordingStream = null, voiceChunks = [], recordedVoice = null;
   let sendLocked = false;
 
-  callSoon.addEventListener("click",()=>alert("Live voice calls are coming later. Voice messages work now."));
   replyCancel.addEventListener("click",()=>clearReply());
 
   function clearReply(){
@@ -1915,6 +1956,7 @@
     clearReply(); recordedVoice=null;
     currentChat = { type, id };
     chatTitle.textContent = type === "group" ? "👥 " + title : "💬 " + title;
+    voiceCallBtn.hidden = type !== "friend";
     chatShell.hidden = false;
     chatMessages.innerHTML = '<div class="comm-empty">Loading messages…</div>';
     const col = type === "group"
@@ -2029,6 +2071,128 @@
     }
   });
 
+
+
+  // ---- friend-to-friend WebRTC voice calls ----
+  const voiceCallBtn=document.getElementById("voiceCallBtn");
+  const voiceCallOverlay=document.getElementById("voiceCallOverlay");
+  const voiceCallName=document.getElementById("voiceCallName");
+  const voiceCallStatus=document.getElementById("voiceCallStatus");
+  const voiceCallAvatar=document.getElementById("voiceCallAvatar");
+  const voiceAccept=document.getElementById("voiceAccept");
+  const voiceMute=document.getElementById("voiceMute");
+  const voiceEnd=document.getElementById("voiceEnd");
+  const voiceRemoteAudio=document.getElementById("voiceRemoteAudio");
+
+  const rtcConfig={iceServers:[
+    {urls:["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]}
+  ]};
+  let callPC=null,callStream=null,callDocRef=null,callRole="",callPeerId="",callPeerName="",stopCallDoc=null,stopIncomingCalls=null,callMuted=false;
+
+  function callUI(name,status,incoming=false){
+    voiceCallName.textContent=name||"Voice call";
+    voiceCallAvatar.textContent=initial(name||"A");
+    voiceCallStatus.textContent=status||"Connecting…";
+    voiceAccept.hidden=!incoming;
+    voiceMute.hidden=incoming;
+    voiceCallOverlay.hidden=false;
+  }
+  async function cleanupCall(updateState=true){
+    try{if(updateState&&callDocRef)await updateDoc(callDocRef,{status:"ended",endedAt:serverTimestamp()});}catch(e){}
+    if(stopCallDoc){stopCallDoc();stopCallDoc=null;}
+    if(callPC){callPC.onicecandidate=null;callPC.ontrack=null;callPC.close();callPC=null;}
+    if(callStream){callStream.getTracks().forEach(t=>t.stop());callStream=null;}
+    voiceRemoteAudio.srcObject=null; voiceCallOverlay.hidden=true;
+    voiceAccept.hidden=true; voiceMute.hidden=true; callDocRef=null;callRole="";callPeerId="";callPeerName="";callMuted=false;
+    voiceMute.textContent="Mute";
+  }
+  async function getMic(){
+    if(!navigator.mediaDevices?.getUserMedia)throw new Error("Voice calls are not supported by this browser.");
+    return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+  }
+  async function setupPC(candidateOut,candidateIn){
+    callPC=new RTCPeerConnection(rtcConfig);
+    callStream=await getMic();
+    callStream.getTracks().forEach(t=>callPC.addTrack(t,callStream));
+    callPC.ontrack=e=>{voiceRemoteAudio.srcObject=e.streams[0];};
+    callPC.onconnectionstatechange=()=>{
+      const st=callPC?.connectionState;
+      if(st==="connected"){voiceCallStatus.textContent="Connected";voiceMute.hidden=false;}
+      if(st==="failed"||st==="closed")cleanupCall(false);
+    };
+    callPC.onicecandidate=async e=>{
+      if(e.candidate&&callDocRef)try{await addDoc(collection(callDocRef,candidateOut),e.candidate.toJSON());}catch(err){console.error(err);}
+    };
+    onSnapshot(collection(callDocRef,candidateIn),snap=>{
+      snap.docChanges().forEach(async ch=>{
+        if(ch.type==="added"&&callPC)try{await callPC.addIceCandidate(new RTCIceCandidate(ch.doc.data()));}catch(e){}
+      });
+    });
+  }
+
+  voiceCallBtn.addEventListener("click",async()=>{
+    if(!currentChat||currentChat.type!=="friend")return alert("Live voice calls are friend-to-friend for now.");
+    const fs=await getDoc(doc(db,"friendships",currentChat.id));
+    if(!fs.exists())return;
+    const f=fs.data(),peer=f.a===myId?f.b:f.a;
+    if(blockedIds.has(peer))return alert("This user is blocked.");
+    callPeerId=peer;callPeerName=await nameOf(peer);callRole="caller";
+    callDocRef=doc(collection(db,"calls"));
+    callUI(callPeerName,"Calling…",false);
+    try{
+      await setupPC("callerCandidates","calleeCandidates");
+      const offer=await callPC.createOffer();await callPC.setLocalDescription(offer);
+      await setDoc(callDocRef,{callerId:myId,calleeId:peer,friendshipId:currentChat.id,status:"ringing",
+        offer:{type:offer.type,sdp:offer.sdp},createdAt:serverTimestamp()});
+      stopCallDoc=onSnapshot(callDocRef,async snap=>{
+        if(!snap.exists())return;const d=snap.data();
+        if(d.status==="accepted"&&d.answer&&!callPC.currentRemoteDescription){
+          await callPC.setRemoteDescription(new RTCSessionDescription(d.answer));voiceCallStatus.textContent="Connecting…";
+        }else if(d.status==="declined"){voiceCallStatus.textContent="Call declined";setTimeout(()=>cleanupCall(false),900);}
+        else if(d.status==="ended"){cleanupCall(false);}
+      });
+    }catch(e){console.error(e);alert(e.message||"Could not start call.");cleanupCall(false);}
+  });
+
+  async function acceptIncoming(){
+    if(!callDocRef)return;
+    voiceAccept.hidden=true;voiceCallStatus.textContent="Connecting…";callRole="callee";
+    try{
+      const snap=await getDoc(callDocRef);if(!snap.exists())return cleanupCall(false);
+      const d=snap.data();
+      await setupPC("calleeCandidates","callerCandidates");
+      await callPC.setRemoteDescription(new RTCSessionDescription(d.offer));
+      const answer=await callPC.createAnswer();await callPC.setLocalDescription(answer);
+      await updateDoc(callDocRef,{answer:{type:answer.type,sdp:answer.sdp},status:"accepted",answeredAt:serverTimestamp()});
+      voiceMute.hidden=false;
+      stopCallDoc=onSnapshot(callDocRef,s=>{if(s.exists()&&s.data().status==="ended")cleanupCall(false);});
+    }catch(e){console.error(e);cleanupCall(false);}
+  }
+  voiceAccept.addEventListener("click",acceptIncoming);
+  voiceEnd.addEventListener("click",async()=>{
+    if(callRole==="callee"&&callDocRef&&voiceAccept.hidden===false){
+      try{await updateDoc(callDocRef,{status:"declined",endedAt:serverTimestamp()});}catch(e){}
+      cleanupCall(false);return;
+    }
+    cleanupCall(true);
+  });
+  voiceMute.addEventListener("click",()=>{
+    if(!callStream)return;callMuted=!callMuted;
+    callStream.getAudioTracks().forEach(t=>t.enabled=!callMuted);
+    voiceMute.textContent=callMuted?"Unmute":"Mute";
+  });
+
+  function watchIncomingCalls(){
+    if(stopIncomingCalls)stopIncomingCalls();
+    stopIncomingCalls=onSnapshot(query(collection(db,"calls"),where("calleeId","==",myId),where("status","==","ringing")),async snap=>{
+      if(callDocRef)return;
+      const d=snap.docs[0];if(!d)return;
+      const data=d.data();
+      if(blockedIds.has(data.callerId)){try{await updateDoc(d.ref,{status:"declined"});}catch(e){}return;}
+      callDocRef=d.ref;callPeerId=data.callerId;callPeerName=await nameOf(callPeerId);callRole="callee";
+      callUI(callPeerName,"Incoming voice call…",true);
+    });
+  }
 
   // ---- blocking & reporting ----
   const reportDialog=document.getElementById("reportDialog");
