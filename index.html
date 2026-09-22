@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1423">
 <title>APO – Anti Pedos Only | Official Website</title>
 <meta name="description" content="APO (Anti Pedos Only) is an anti-predator community founded by Guru in 2025. We report predators to platforms and authorities and help people stay safe online.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -513,6 +514,30 @@
   .online-dot{width:8px;height:8px;border-radius:50%;background:#20a464;display:inline-block;margin-right:5px;}
 
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* ===== APO 2026 UI upgrade ===== */
+html{scroll-behavior:smooth;scroll-padding-top:84px}body{overflow-x:hidden}
+:root{--apo-glow:rgba(255,176,32,.20);--apo-blue:#0b1930;--apo-panel:#101d32}
+header{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.btn,.comm-mini,.comm-tab,.chat-head button,.settings-btn{transition:transform .18s ease,box-shadow .18s ease,background .18s ease,border-color .18s ease}
+.btn:hover,.comm-mini:hover,.chat-head button:hover{transform:translateY(-2px)}
+.reveal{transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.hero{position:relative;isolation:isolate;overflow:hidden}.hero:before,.hero:after{content:"";position:absolute;border-radius:50%;filter:blur(2px);pointer-events:none;z-index:-1}.hero:before{width:520px;height:520px;right:-180px;top:-220px;background:radial-gradient(circle,var(--apo-glow),transparent 68%);animation:apoFloat 9s ease-in-out infinite}.hero:after{width:380px;height:380px;left:-160px;bottom:-190px;background:radial-gradient(circle,rgba(54,113,210,.16),transparent 70%);animation:apoFloat 12s ease-in-out infinite reverse}@keyframes apoFloat{50%{transform:translate3d(-24px,28px,0) scale(1.08)}}
+
+/* Full community workspace */
+#commBackdrop{background:rgba(3,8,18,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.settings-panel.comm-panel{max-width:none!important;width:min(1180px,calc(100vw - 28px));height:min(780px,calc(100dvh - 28px));left:50%!important;right:auto!important;top:50%!important;bottom:auto!important;transform:translate(-50%,-50%)!important;padding:0!important;border:1px solid rgba(255,255,255,.10);border-radius:22px;overflow:hidden;background:#0d1728;color:#eef4ff;box-shadow:0 35px 100px rgba(0,0,0,.55);display:grid;grid-template-columns:245px minmax(0,1fr);grid-template-rows:auto 1fr}
+.comm-panel .settings-close{z-index:8;right:14px;top:13px;color:#fff;background:rgba(255,255,255,.08);border-radius:10px}
+.comm-panel>h2,.comm-panel>.sub,.comm-panel>.comm-me,.comm-panel>.profile-tools,.comm-panel>#meStatus,.comm-panel>.comm-note{grid-column:1}
+.comm-panel>h2{margin:0;padding:24px 22px 0;background:#091221;font-size:26px;color:#fff}.comm-panel>.sub{margin:0;padding:5px 22px 18px;background:#091221;color:#8fa1ba;font-size:12px}.comm-panel>.comm-me{margin:0;padding:14px 16px;background:#0b1525;border:0;border-top:1px solid rgba(255,255,255,.06);border-radius:0}.comm-panel .comm-me input{color:#fff}.comm-panel>.profile-tools{margin:0;padding:0 16px 12px;background:#0b1525}.comm-panel>#meStatus{margin:0;padding:0 16px;background:#0b1525}.comm-panel>.comm-note{margin:0;padding:14px 18px;background:#091221;border-top:1px solid rgba(255,255,255,.06);color:#7f91aa;font-size:11px;align-self:end}
+.comm-panel>.comm-tabs{grid-column:1;grid-row:2;display:flex!important;flex-direction:column;align-self:start;margin:0;padding:16px 10px;background:#091221;border:0;gap:5px;min-height:100%}.comm-panel .comm-tab{text-align:left;width:100%;padding:11px 13px;border:0!important;border-radius:9px;color:#9caec5;font-size:14px}.comm-panel .comm-tab:hover{background:rgba(255,255,255,.06);color:#fff}.comm-panel .comm-tab[aria-selected=true]{background:rgba(255,176,32,.14);color:#ffd27d;box-shadow:inset 3px 0 #ffb020}
+.comm-panel>.comm-view{grid-column:2;grid-row:1/3;overflow:auto;padding:74px 28px 28px;background:radial-gradient(circle at 85% 0,rgba(34,81,148,.16),transparent 34%),#101b2d}.comm-panel>.comm-view:before{content:"Community";position:absolute;top:22px;margin-left:0;font-family:var(--display);font-size:30px;font-weight:800;color:#fff;letter-spacing:.2px}.comm-panel .comm-search,.comm-panel .comm-group-form{max-width:720px}.comm-panel .comm-search input,.comm-panel .comm-group-form input{background:#0a1424;border-color:#263852;color:#fff;border-radius:12px}.comm-panel .comm-list{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}.comm-panel .comm-row{background:#132239;border-color:#263852;color:#eef4ff;border-radius:14px;padding:13px;box-shadow:0 8px 20px rgba(0,0,0,.10)}.comm-panel .comm-row:hover{border-color:#3c5475;background:#162943}.comm-panel .comm-row .sub,.comm-panel .comm-note{color:#91a2ba}.comm-panel .comm-avatar{box-shadow:0 0 0 3px rgba(255,255,255,.06)}
+
+/* Discord-like chat */
+.chat-shell{background:#0b1423;color:#eef4ff}.chat-head{background:#0b1423;border-bottom-color:#26354a;padding-inline:18px;box-shadow:0 1px 0 rgba(255,255,255,.03)}.chat-layout{display:grid;grid-template-columns:240px minmax(0,1fr) 250px;min-height:0;flex:1}.chat-side{background:#0d1829;border-right:1px solid #223149;padding:18px;overflow:auto}.chat-side.right{border-right:0;border-left:1px solid #223149}.chat-side h4{color:#fff;text-transform:uppercase;letter-spacing:.08em;font-size:12px}.side-card{background:#111f34;border:1px solid #263852;border-radius:12px;padding:12px;margin:10px 0;display:grid;gap:5px}.side-card b{color:#f4f7fb}.voice-call-note{color:#8fa1ba;font-size:12px}.chat-main{display:flex;flex-direction:column;min-width:0;min-height:0;background:#111d30}.chat-messages{background:radial-gradient(circle at 50% -20%,rgba(31,72,128,.15),transparent 35%),#111d30;padding:22px 24px;gap:4px}.chat-msg{max-width:min(82%,680px);background:transparent;border:0;color:#edf3fc;border-radius:8px;padding:8px 10px}.chat-msg:hover{background:rgba(255,255,255,.035)}.chat-msg.mine{border:0;background:rgba(37,99,235,.11)}.chat-msg .who{color:#7eb2ff;font-size:13px}.chat-msg .when{color:#73859e}.chat-compose{margin:0 18px 18px;padding:8px;background:#1a2a41;border:1px solid #2a3e5b;border-radius:14px}.chat-compose input{background:transparent!important;border:0!important;color:#fff!important;outline:0}.chat-compose button{border-radius:10px}.chat-attach{background:transparent!important;color:#b7c5d8!important;font-size:20px!important;padding:8px 10px!important}.reply-preview{margin:0 18px;background:#16263c;border-color:#30445f;color:#dce7f6}
+@media(max-width:900px){.settings-panel.comm-panel{width:100vw;height:100dvh;border-radius:0;grid-template-columns:1fr;grid-template-rows:auto auto 1fr}.comm-panel>h2,.comm-panel>.sub,.comm-panel>.comm-me,.comm-panel>.profile-tools,.comm-panel>#meStatus,.comm-panel>.comm-note{grid-column:1}.comm-panel>.sub{display:none}.comm-panel>.comm-me{padding-top:8px}.comm-panel>.profile-tools,.comm-panel>.comm-note{display:none}.comm-panel>.comm-tabs{grid-column:1;grid-row:auto;min-height:auto;flex-direction:row;overflow-x:auto;padding:8px 10px;background:#091221}.comm-panel .comm-tab{width:auto;white-space:nowrap}.comm-panel>.comm-view{grid-column:1;grid-row:auto;padding:62px 14px 18px}.comm-panel .comm-list{grid-template-columns:1fr}.chat-layout{grid-template-columns:1fr}.chat-side{display:none}.chat-messages{padding:14px 10px}.chat-compose{margin:0 8px 8px}.chat-msg{max-width:92%}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.hero:before,.hero:after{animation:none}}
+
 </style>
 </head>
 <body>
@@ -934,11 +959,11 @@
   <div class="comm-status" id="meStatus"></div>
 
   <div class="comm-tabs" role="tablist" id="commTabs" hidden>
-    <button class="comm-tab" role="tab" data-tab="find" aria-selected="true">Find</button>
-    <button class="comm-tab" role="tab" data-tab="requests">Requests</button>
-    <button class="comm-tab" role="tab" data-tab="friends">Friends</button>
-    <button class="comm-tab" role="tab" data-tab="groups">Groups</button>
-    <button class="comm-tab" role="tab" data-tab="blocked">Blocked</button>
+    <button class="comm-tab" role="tab" data-tab="find" aria-selected="true">🔎 Discover</button>
+    <button class="comm-tab" role="tab" data-tab="requests">🔔 Requests</button>
+    <button class="comm-tab" role="tab" data-tab="friends">👥 Friends</button>
+    <button class="comm-tab" role="tab" data-tab="groups">💬 Groups</button>
+    <button class="comm-tab" role="tab" data-tab="blocked">🛡️ Blocked</button>
   </div>
 
   <div class="comm-view active" data-view="find">
@@ -986,8 +1011,8 @@
   </div>
   <div class="chat-layout">
     <aside class="chat-side">
-      <h4>APO Chat</h4>
-      <div class="side-card"><b>Quick tips</b><span class="voice-call-note">Tap a person's name to mention them. Use Reply under a message to quote it.</span></div>
+      <h4>APO Community</h4>
+      <div class="side-card"><b>Chat tools</b><span class="voice-call-note">Reply to messages, @mention people, and share media without leaving the conversation.</span></div>
       <div class="side-card"><b>Media</b><span class="voice-call-note">Images, videos and voice messages can be shared here.</span></div>
     </aside>
     <main class="chat-main">
@@ -1002,7 +1027,7 @@
       </form>
     </main>
     <aside class="chat-side right">
-      <h4>Conversation</h4>
+      <h4>Conversation details</h4>
       <div class="side-card"><b>Mentions</b><span class="voice-call-note">Messages that @mention your guest name are highlighted.</span></div>
       <div class="side-card"><b>Safety</b><span class="voice-call-note">Block and report controls stay available on messages.</span></div>
       <div class="side-card"><b>Voice calls</b><span class="voice-call-note">Coming later. Voice messages work now.</span></div>
