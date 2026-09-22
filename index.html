@@ -423,6 +423,24 @@
   .group-members { font-size: 12px; color: var(--muted); }
   .invite-picker { margin-top: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
 
+
+  /* ---------- media, profile, blocking & reporting ---------- */
+  .comm-avatar img { width:100%; height:100%; object-fit:cover; border-radius:inherit; }
+  .profile-tools { display:flex; gap:8px; flex-wrap:wrap; margin:-6px 0 14px 52px; }
+  .chat-media { max-width:min(100%,360px); max-height:320px; border-radius:10px; display:block; margin-top:7px; }
+  .chat-video { width:min(100%,420px); max-height:320px; border-radius:10px; display:block; margin-top:7px; background:#000; }
+  .chat-compose { flex-wrap:wrap; }
+  .chat-compose input[type="text"] { flex:1 1 220px; }
+  .chat-attach { border:1px solid var(--line)!important; background:var(--bg)!important; color:var(--ink)!important; padding:9px 12px!important; }
+  .chat-tools { display:flex; gap:6px; margin-top:6px; }
+  .chat-tools button { border:0; border-radius:6px; padding:4px 7px; font-size:11px; cursor:pointer; background:var(--line); color:var(--ink); }
+  .report-dialog { position:fixed; inset:0; z-index:150; background:rgba(0,0,0,.58); display:grid; place-items:center; padding:18px; }
+  .report-card { width:min(460px,100%); background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .report-card h3 { font-size:28px; margin-bottom:10px; }
+  .report-card select,.report-card textarea { width:100%; font:inherit; background:var(--bg); color:var(--ink); border:2px solid var(--line); border-radius:8px; padding:10px; margin:7px 0; }
+  .report-card textarea { min-height:100px; resize:vertical; }
+  .report-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
+
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
@@ -837,6 +855,11 @@
     <input type="text" id="meName" maxlength="24" placeholder="Pick your guest name">
     <button class="comm-mini ok" id="meSave" type="button">Save</button>
   </div>
+  <div class="profile-tools">
+    <input type="file" id="avatarFile" accept="image/jpeg,image/png,image/webp" hidden>
+    <button class="comm-mini add" id="avatarPick" type="button">Profile picture</button>
+    <button class="comm-mini no" id="avatarRemove" type="button">Remove picture</button>
+  </div>
   <div class="comm-status" id="meStatus"></div>
 
   <div class="comm-tabs" role="tablist" id="commTabs" hidden>
@@ -844,6 +867,7 @@
     <button class="comm-tab" role="tab" data-tab="requests">Requests</button>
     <button class="comm-tab" role="tab" data-tab="friends">Friends</button>
     <button class="comm-tab" role="tab" data-tab="groups">Groups</button>
+    <button class="comm-tab" role="tab" data-tab="blocked">Blocked</button>
   </div>
 
   <div class="comm-view active" data-view="find">
@@ -863,6 +887,10 @@
 
   <div class="comm-view" data-view="friends">
     <ul class="comm-list" id="friendList"></ul>
+  </div>
+
+  <div class="comm-view" data-view="blocked">
+    <ul class="comm-list" id="blockedList"></ul>
   </div>
 
   <div class="comm-view" data-view="groups">
@@ -886,9 +914,30 @@
   </div>
   <div class="chat-messages" id="chatMessages"></div>
   <form class="chat-compose" id="chatForm">
-    <input id="chatInput" maxlength="500" autocomplete="off" placeholder="Message…">
+    <input id="chatInput" type="text" maxlength="500" autocomplete="off" placeholder="Message…">
+    <input id="chatMediaFile" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" hidden>
+    <button class="chat-attach" id="chatAttach" type="button">📎 Image / Video</button>
     <button type="submit">Send</button>
   </form>
+</div>
+
+<div class="report-dialog" id="reportDialog" hidden>
+  <div class="report-card">
+    <h3>Report</h3>
+    <p class="sub" id="reportTargetText">Report this content to APO moderators.</p>
+    <select id="reportReason">
+      <option value="harassment">Harassment or bullying</option>
+      <option value="spam">Spam</option>
+      <option value="unsafe_contact">Unsafe or inappropriate contact</option>
+      <option value="impersonation">Impersonation</option>
+      <option value="other">Other</option>
+    </select>
+    <textarea id="reportDetails" maxlength="500" placeholder="Optional details. Don't include private information."></textarea>
+    <div class="report-actions">
+      <button class="comm-mini no" id="reportCancel" type="button">Cancel</button>
+      <button class="comm-mini danger" id="reportSend" type="button">Send report</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1138,6 +1187,9 @@
     collection, addDoc, query, where, onSnapshot, orderBy, limit,
     serverTimestamp, arrayUnion, arrayRemove, writeBatch
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import {
+    getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAbgb_rUomORhOUx2Fl6lgO_pU6NN0eFEE",
@@ -1161,6 +1213,7 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+  const storage = getStorage(app);
 
   let myId = null, myName = "", liveStarted = false, authReady = false;
   const meName = document.getElementById("meName");
@@ -1168,6 +1221,57 @@
   const meStatus = document.getElementById("meStatus");
   const meAvatar = document.getElementById("meAvatar");
   const commTabs = document.getElementById("commTabs");
+  const avatarFile = document.getElementById("avatarFile");
+  const avatarPick = document.getElementById("avatarPick");
+  const avatarRemove = document.getElementById("avatarRemove");
+  const blockedList = document.getElementById("blockedList");
+  const blockedIds = new Set();
+
+  function avatarHTML(name, url, cls) {
+    return '<div class="comm-avatar' + (cls ? ' '+cls : '') + '">' +
+      (url ? '<img src="' + esc(url) + '" alt="">' : esc(initial(name))) + '</div>';
+  }
+  async function profileOf(id) {
+    try {
+      const snap = await getDoc(doc(db, "guests", id));
+      if (!snap.exists()) return {name:"Guest", avatarUrl:""};
+      return {name:snap.data().name || "Guest", avatarUrl:snap.data().avatarUrl || ""};
+    } catch(e) { return {name:"Guest", avatarUrl:""}; }
+  }
+  function paintMyAvatar() {
+    getDoc(doc(db,"guests",myId)).then(function(snap){
+      const u = snap.exists() ? (snap.data().avatarUrl || "") : "";
+      meAvatar.innerHTML = u ? '<img src="'+esc(u)+'" alt="">' : esc(initial(myName));
+    }).catch(()=>{ meAvatar.textContent=initial(myName); });
+  }
+
+  avatarPick.addEventListener("click", () => avatarFile.click());
+  avatarFile.addEventListener("change", async function(){
+    const f=this.files && this.files[0]; if(!f || !myId) return;
+    if(!/^image\/(jpeg|png|webp)$/.test(f.type)) return alert("Use JPG, PNG or WebP.");
+    if(f.size > 3*1024*1024) return alert("Profile pictures must be 3 MB or smaller.");
+    avatarPick.disabled=true;
+    try{
+      const ext=(f.name.split(".").pop()||"jpg").replace(/[^a-z0-9]/gi,"").toLowerCase();
+      const r=storageRef(storage,"avatars/"+myId+"/profile."+ext);
+      await uploadBytes(r,f,{contentType:f.type});
+      const url=await getDownloadURL(r);
+      await updateDoc(doc(db,"guests",myId),{avatarUrl:url,avatarPath:r.fullPath,updatedAt:serverTimestamp()});
+      paintMyAvatar();
+    }catch(e){ console.error(e); alert("Profile picture upload failed. Make sure Firebase Storage is enabled and its rules are published."); }
+    finally{ avatarPick.disabled=false; this.value=""; }
+  });
+  avatarRemove.addEventListener("click", async function(){
+    if(!myId) return;
+    try{
+      const g=await getDoc(doc(db,"guests",myId));
+      const path=g.exists() ? g.data().avatarPath : "";
+      if(path) try{ await deleteObject(storageRef(storage,path)); }catch(e){}
+      await updateDoc(doc(db,"guests",myId),{avatarUrl:"",avatarPath:"",updatedAt:serverTimestamp()});
+      paintMyAvatar();
+    }catch(e){ console.error(e); }
+  });
+
 
   function setStatus(el, text, ok) {
     el.textContent = text || "";
@@ -1188,6 +1292,7 @@
         myName = snap.data().name || "";
         meName.value = myName;
         meAvatar.textContent = initial(myName);
+        paintMyAvatar();
         commTabs.hidden = false;
         setStatus(meStatus, "Signed in as guest " + myName + ".", true);
         startLiveData();
@@ -1236,6 +1341,7 @@
       }, { merge: true });
       myName = name;
       meAvatar.textContent = initial(name);
+      paintMyAvatar();
       commTabs.hidden = false;
       setStatus(meStatus, "Saved! You're " + name + ".", true);
       startLiveData();
@@ -1348,6 +1454,18 @@
   function startLiveData() {
     if (liveStarted || !myId) return;
     liveStarted = true;
+    onSnapshot(collection(db, "blocks", myId, "users"), async function(snap) {
+      blockedIds.clear(); blockedList.innerHTML="";
+      if(snap.empty){ blockedList.innerHTML='<li class="comm-empty">You have not blocked anyone.</li>'; return; }
+      for(const d of snap.docs){
+        blockedIds.add(d.id);
+        const p=await profileOf(d.id);
+        const li=document.createElement("li"); li.className="comm-row";
+        li.innerHTML=avatarHTML(p.name,p.avatarUrl)+'<div class="name">'+esc(p.name)+'</div><button class="comm-mini ok" data-unblock="'+d.id+'">Unblock</button>';
+        blockedList.appendChild(li);
+      }
+    });
+
 
     onSnapshot(query(collection(db, "friend_requests"), where("toId", "==", myId), where("status", "==", "pending")), async function (snap) {
       reqIn.innerHTML = "";
@@ -1392,10 +1510,13 @@
           const rawId = friendshipKey.replace(/^[ab]:/, "");
           const li = document.createElement("li");
           li.className = "comm-row";
-          li.innerHTML = '<div class="comm-avatar">' + esc(initial(n)) + '</div><div class="name">' + esc(n) +
-            ' <span class="sub">#' + esc(other.slice(0, 5)) + '</span></div>' +
-            '<button class="comm-mini chat" data-fchat="' + rawId + '" data-other="' + esc(other) + '">Chat</button>' +
-            '<button class="comm-mini danger" data-unfriend="' + friendshipKey + '">Remove</button>';
+          profileOf(other).then(function(p) {
+            li.innerHTML = avatarHTML(p.name,p.avatarUrl) + '<div class="name">' + esc(p.name) +
+              ' <span class="sub">#' + esc(other.slice(0, 5)) + '</span></div>' +
+              '<button class="comm-mini chat" data-fchat="' + rawId + '" data-other="' + esc(other) + '">Chat</button>' +
+              '<button class="comm-mini no" data-report-account="' + esc(other) + '">Report</button>' +
+              '<button class="comm-mini danger" data-block="' + esc(other) + '">Block</button>';
+          });
           friendList.appendChild(li);
         });
       });
@@ -1488,6 +1609,16 @@
   friendList.addEventListener("click", async function (e) {
     const chat = e.target.closest("[data-fchat]");
     const remove = e.target.closest("[data-unfriend]");
+    const block = e.target.closest("[data-block]");
+    const reportAccount = e.target.closest("[data-report-account]");
+    if (reportAccount) { openReport("account", reportAccount.getAttribute("data-report-account"), ""); return; }
+    if (block) {
+      const uid=block.getAttribute("data-block");
+      await setDoc(doc(db,"blocks",myId,"users",uid),{blockedId:uid,createdAt:serverTimestamp()});
+      const fid=friendshipDocId(myId,uid);
+      try{ await deleteDoc(doc(db,"friendships",fid)); }catch(err){}
+      return;
+    }
     if (chat) {
       const other = chat.getAttribute("data-other");
       const n = await nameOf(other);
@@ -1502,7 +1633,12 @@
     } catch (err) { console.error(err); remove.disabled = false; }
   });
 
-  const groupNameInput = document.getElementById("groupNameInput");
+  blockedList.addEventListener("click", async function(e){
+    const b=e.target.closest("[data-unblock]"); if(!b) return;
+    try{ await deleteDoc(doc(db,"blocks",myId,"users",b.getAttribute("data-unblock"))); }catch(err){console.error(err);}
+  });
+
+    const groupNameInput = document.getElementById("groupNameInput");
   const groupCreate = document.getElementById("groupCreate");
 
   groupCreate.addEventListener("click", async function () {
@@ -1618,6 +1754,10 @@
   const chatMessages = document.getElementById("chatMessages");
   const chatForm = document.getElementById("chatForm");
   const chatInput = document.getElementById("chatInput");
+  const chatMediaFile = document.getElementById("chatMediaFile");
+  const chatAttach = document.getElementById("chatAttach");
+  chatAttach.addEventListener("click", () => chatMediaFile.click());
+
 
   function fmtTime(ts) {
     try {
@@ -1650,7 +1790,13 @@
         const n = await nameOf(m.senderId);
         const div = document.createElement("div");
         div.className = "chat-msg" + (m.senderId === myId ? " mine" : "");
-        div.innerHTML = '<div class="who">' + esc(n) + '</div><div>' + esc(m.text || "") + '</div><div class="when">' + esc(fmtTime(m.createdAt)) + '</div>';
+        const media = m.mediaUrl ? (m.mediaType === "video"
+          ? '<video class="chat-video" controls preload="metadata" src="'+esc(m.mediaUrl)+'"></video>'
+          : '<img class="chat-media" loading="lazy" src="'+esc(m.mediaUrl)+'" alt="Shared image">') : "";
+        const tools = m.senderId !== myId ? '<div class="chat-tools"><button type="button" data-report-msg="'+d.id+'" data-sender="'+esc(m.senderId)+'">Report message</button><button type="button" data-block-msg="'+esc(m.senderId)+'">Block</button></div>' : "";
+        div.innerHTML = '<div class="who">' + esc(n) + '</div>' +
+          (m.text ? '<div>'+esc(m.text)+'</div>' : '') + media +
+          '<div class="when">' + esc(fmtTime(m.createdAt)) + '</div>' + tools;
         chatMessages.appendChild(div);
       }
       if (snap.empty) chatMessages.innerHTML = '<div class="comm-empty">No messages yet. Say hi!</div>';
@@ -1667,18 +1813,85 @@
   chatForm.addEventListener("submit", async function (e) {
     e.preventDefault();
     const msg = chatInput.value.trim();
-    if (!msg || !currentChat || !myId) return;
+    const file = chatMediaFile.files && chatMediaFile.files[0];
+    if ((!msg && !file) || !currentChat || !myId) return;
     if (msg.length > 500) return;
-    chatInput.value = "";
+    if (file) {
+      const okImage=/^image\/(jpeg|png|webp)$/.test(file.type);
+      const okVideo=/^video\/(mp4|webm)$/.test(file.type);
+      if(!okImage && !okVideo) return alert("Use JPG/PNG/WebP images or MP4/WebM videos.");
+      const max=okVideo ? 25*1024*1024 : 8*1024*1024;
+      if(file.size>max) return alert(okVideo ? "Videos must be 25 MB or smaller." : "Images must be 8 MB or smaller.");
+    }
+    chatInput.disabled=true; chatAttach.disabled=true;
     try {
       const col = currentChat.type === "group"
         ? collection(db, "groups", currentChat.id, "messages")
         : collection(db, "friendships", currentChat.id, "messages");
-      await addDoc(col, { senderId: myId, text: msg, createdAt: serverTimestamp() });
+      const messageRef = doc(col);
+      let mediaUrl="", mediaPath="", mediaType="";
+      if(file){
+        const ext=(file.name.split(".").pop()||"bin").replace(/[^a-z0-9]/gi,"").toLowerCase();
+        mediaType=file.type.startsWith("video/") ? "video" : "image";
+        mediaPath=(currentChat.type==="group" ? "group_media/" : "friend_media/")+
+          currentChat.id+"/"+myId+"/"+messageRef.id+"."+ext;
+        const r=storageRef(storage,mediaPath);
+        await uploadBytes(r,file,{contentType:file.type});
+        mediaUrl=await getDownloadURL(r);
+      }
+      await setDoc(messageRef, {
+        senderId: myId, text: msg, mediaUrl, mediaPath, mediaType,
+        createdAt: serverTimestamp()
+      });
+      chatInput.value=""; chatMediaFile.value="";
     } catch (err) {
       console.error(err);
-      chatInput.value = msg;
-      alert("Message couldn't send. Check Firestore rules.");
+      alert("Message couldn't send. Check Firestore and Storage rules.");
+    } finally {
+      chatInput.disabled=false; chatAttach.disabled=false; chatInput.focus();
+    }
+  });
+
+
+  // ---- blocking & reporting ----
+  const reportDialog=document.getElementById("reportDialog");
+  const reportTargetText=document.getElementById("reportTargetText");
+  const reportReason=document.getElementById("reportReason");
+  const reportDetails=document.getElementById("reportDetails");
+  const reportCancel=document.getElementById("reportCancel");
+  const reportSend=document.getElementById("reportSend");
+  let pendingReport=null;
+
+  function openReport(type,targetId,messageId){
+    pendingReport={type,targetId,messageId:messageId||"",chatType:currentChat?.type||"",chatId:currentChat?.id||""};
+    reportTargetText.textContent=type==="message" ? "Report this message to APO moderators." : "Report this account to APO moderators.";
+    reportDetails.value=""; reportDialog.hidden=false;
+  }
+  reportCancel.addEventListener("click",()=>{reportDialog.hidden=true; pendingReport=null;});
+  reportSend.addEventListener("click",async function(){
+    if(!pendingReport||!myId)return;
+    reportSend.disabled=true;
+    try{
+      await addDoc(collection(db,"reports"),{
+        reporterId:myId, type:pendingReport.type, targetId:pendingReport.targetId,
+        messageId:pendingReport.messageId, chatType:pendingReport.chatType, chatId:pendingReport.chatId,
+        reason:reportReason.value, details:reportDetails.value.trim().slice(0,500),
+        status:"open", createdAt:serverTimestamp()
+      });
+      reportDialog.hidden=true; pendingReport=null; alert("Report sent.");
+    }catch(e){console.error(e); alert("Report couldn't be sent.");}
+    finally{reportSend.disabled=false;}
+  });
+
+  chatMessages.addEventListener("click",async function(e){
+    const r=e.target.closest("[data-report-msg]");
+    const b=e.target.closest("[data-block-msg]");
+    if(r){ openReport("message",r.getAttribute("data-sender"),r.getAttribute("data-report-msg")); return; }
+    if(b){
+      const uid=b.getAttribute("data-block-msg");
+      await setDoc(doc(db,"blocks",myId,"users",uid),{blockedId:uid,createdAt:serverTimestamp()});
+      if(currentChat?.type==="friend") try{await deleteDoc(doc(db,"friendships",currentChat.id));}catch(err){}
+      closeChat();
     }
   });
 
