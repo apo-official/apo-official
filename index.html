@@ -441,6 +441,45 @@
   .report-card textarea { min-height:100px; resize:vertical; }
   .report-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
 
+
+  /* ---------- APO Community chat v3 ---------- */
+  .chat-shell{background:linear-gradient(135deg,var(--bg),var(--surface));}
+  .chat-layout{flex:1;min-height:0;display:grid;grid-template-columns:220px minmax(0,1fr) 220px;}
+  .chat-side{padding:16px 12px;background:var(--surface);border-right:1px solid var(--line);overflow:auto;}
+  .chat-side.right{border-right:0;border-left:1px solid var(--line);}
+  .chat-side h4{font-family:var(--display);font-size:18px;margin:0 0 10px;}
+  .chat-side .side-card{border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:10px;background:var(--bg);}
+  .chat-side .side-card b{display:block;margin-bottom:4px;}
+  .chat-main{min-width:0;min-height:0;display:flex;flex-direction:column;position:relative;}
+  .chat-messages{padding:20px clamp(12px,3vw,34px);gap:12px;background:
+    radial-gradient(circle at 15% 10%,rgba(255,176,32,.08),transparent 25%),
+    radial-gradient(circle at 85% 80%,rgba(27,79,156,.08),transparent 28%),var(--bg);}
+  .chat-msg{position:relative;box-shadow:0 3px 14px rgba(0,0,0,.05);padding:10px 12px;}
+  .chat-msg.mine{background:color-mix(in srgb,var(--surface) 90%,#1B4F9C 10%);}
+  .chat-msg.mentioned{outline:2px solid var(--amber);box-shadow:0 0 0 4px rgba(255,176,32,.13);}
+  .chat-msg .who{display:flex;align-items:center;gap:6px;}
+  .mention{font-weight:800;color:#1B4F9C;background:rgba(27,79,156,.09);border-radius:5px;padding:0 3px;}
+  .mention.me{color:#8a5700;background:rgba(255,176,32,.22);}
+  .reply-box{border-left:3px solid var(--amber);background:rgba(127,127,127,.08);border-radius:7px;padding:6px 8px;margin-bottom:7px;font-size:12px;cursor:pointer;}
+  .reply-box b{display:block;margin-bottom:2px;}
+  .reply-preview{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-top:1px solid var(--line);background:var(--surface);}
+  .reply-preview .copy{flex:1;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .reply-preview button{border:0;background:transparent;color:var(--ink);font-size:18px;cursor:pointer;}
+  .chat-voice{width:min(290px,100%);margin-top:7px;}
+  .recording{background:#b42318!important;color:#fff!important;animation:recordPulse 1.2s infinite;}
+  @keyframes recordPulse{50%{opacity:.72}}
+  .chat-tools{opacity:.78;transition:.15s;}
+  .chat-msg:hover .chat-tools{opacity:1;}
+  .chat-tools .reply-btn{background:#1B4F9C;color:white;}
+  .chat-head .head-actions{display:flex;gap:6px;}
+  .voice-call-note{font-size:12px;color:var(--muted);line-height:1.4;}
+  @media(max-width:900px){
+    .chat-layout{grid-template-columns:minmax(0,1fr);}
+    .chat-side{display:none;}
+    .chat-messages{padding:14px 10px;}
+    .chat-msg{max-width:88%;}
+  }
+
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
@@ -911,14 +950,32 @@
   <div class="chat-head">
     <button id="chatBack" type="button">← Back</button>
     <strong id="chatTitle">Chat</strong>
+    <div class="head-actions"><button id="callSoon" type="button" title="Voice calls coming later">☎ Voice call</button></div>
   </div>
-  <div class="chat-messages" id="chatMessages"></div>
-  <form class="chat-compose" id="chatForm">
-    <input id="chatInput" type="text" maxlength="500" autocomplete="off" placeholder="Message…">
-    <input id="chatMediaFile" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" hidden>
-    <button class="chat-attach" id="chatAttach" type="button">📎 Image / Video</button>
-    <button type="submit">Send</button>
-  </form>
+  <div class="chat-layout">
+    <aside class="chat-side">
+      <h4>APO Chat</h4>
+      <div class="side-card"><b>Quick tips</b><span class="voice-call-note">Tap a person's name to mention them. Use Reply under a message to quote it.</span></div>
+      <div class="side-card"><b>Media</b><span class="voice-call-note">Images, videos and voice messages can be shared here.</span></div>
+    </aside>
+    <main class="chat-main">
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="reply-preview" id="replyPreview" hidden><div class="copy" id="replyCopy"></div><button id="replyCancel" type="button" aria-label="Cancel reply">×</button></div>
+      <form class="chat-compose" id="chatForm">
+        <button class="chat-attach" id="chatAttach" type="button" title="Attach image or video">＋</button>
+        <button class="chat-attach" id="voiceRecord" type="button" title="Record voice message">🎙</button>
+        <input id="chatMediaFile" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" hidden>
+        <input id="chatInput" type="text" maxlength="500" autocomplete="off" placeholder="Message… use @name to mention">
+        <button type="submit">Send</button>
+      </form>
+    </main>
+    <aside class="chat-side right">
+      <h4>Conversation</h4>
+      <div class="side-card"><b>Mentions</b><span class="voice-call-note">Messages that @mention your guest name are highlighted.</span></div>
+      <div class="side-card"><b>Safety</b><span class="voice-call-note">Block and report controls stay available on messages.</span></div>
+      <div class="side-card"><b>Voice calls</b><span class="voice-call-note">Coming later. Voice messages work now.</span></div>
+    </aside>
+  </div>
 </div>
 
 <div class="report-dialog" id="reportDialog" hidden>
@@ -1780,6 +1837,60 @@
   const chatAttach = document.getElementById("chatAttach");
   chatAttach.addEventListener("click", () => chatMediaFile.click());
 
+  const voiceRecord = document.getElementById("voiceRecord");
+  const replyPreview = document.getElementById("replyPreview");
+  const replyCopy = document.getElementById("replyCopy");
+  const replyCancel = document.getElementById("replyCancel");
+  const callSoon = document.getElementById("callSoon");
+  let replyingTo = null;
+  let mediaRecorder = null, recordingStream = null, voiceChunks = [], recordedVoice = null;
+  let sendLocked = false;
+
+  callSoon.addEventListener("click",()=>alert("Live voice calls are coming later. Voice messages work now."));
+  replyCancel.addEventListener("click",()=>clearReply());
+
+  function clearReply(){
+    replyingTo=null; replyPreview.hidden=true; replyCopy.textContent="";
+  }
+  function setReply(id,senderId,senderName,text){
+    replyingTo={id,senderId,senderName,text:(text||"Media message").slice(0,140)};
+    replyCopy.textContent="Replying to "+senderName+": "+replyingTo.text;
+    replyPreview.hidden=false; chatInput.focus();
+  }
+  function renderTextWithMentions(text){
+    const box=document.createElement("div");
+    const parts=String(text||"").split(/(@[A-Za-z0-9_.-]{1,24})/g);
+    for(const part of parts){
+      if(part.startsWith("@") && part.length>1){
+        const sp=document.createElement("span"); sp.className="mention";
+        if(part.slice(1).toLowerCase()===(myName||"").toLowerCase()) sp.classList.add("me");
+        sp.textContent=part; box.appendChild(sp);
+      } else box.appendChild(document.createTextNode(part));
+    }
+    return box.innerHTML;
+  }
+
+  voiceRecord.addEventListener("click", async function(){
+    if(mediaRecorder && mediaRecorder.state==="recording"){ mediaRecorder.stop(); return; }
+    if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return alert("Voice recording isn't supported by this browser.");
+    try{
+      recordingStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      voiceChunks=[];
+      let preferred="";
+      for(const t of ["audio/webm;codecs=opus","audio/webm","audio/mp4"]){ if(MediaRecorder.isTypeSupported(t)){preferred=t;break;} }
+      mediaRecorder=new MediaRecorder(recordingStream, preferred?{mimeType:preferred}:undefined);
+      mediaRecorder.ondataavailable=e=>{if(e.data.size)voiceChunks.push(e.data);};
+      mediaRecorder.onstop=()=>{
+        recordedVoice=new Blob(voiceChunks,{type:mediaRecorder.mimeType||"audio/webm"});
+        recordingStream?.getTracks().forEach(t=>t.stop()); recordingStream=null;
+        voiceRecord.classList.remove("recording"); voiceRecord.textContent="🎙";
+        replyCopy.textContent="Voice message ready — tap Send";
+        replyPreview.hidden=false;
+      };
+      mediaRecorder.start(); voiceRecord.classList.add("recording"); voiceRecord.textContent="■ Stop";
+    }catch(err){console.error(err);alert("Microphone permission is needed to record a voice message.");}
+  });
+
 
   function fmtTime(ts) {
     try {
@@ -1792,12 +1903,16 @@
     if (stopChat) stopChat();
     stopChat = null;
     currentChat = null;
+    clearReply(); recordedVoice=null;
+    if(recordingStream) recordingStream.getTracks().forEach(t=>t.stop());
+    recordingStream=null;
     chatShell.hidden = true;
     chatMessages.innerHTML = "";
   }
 
   function openChat(type, id, title) {
     if (stopChat) stopChat();
+    clearReply(); recordedVoice=null;
     currentChat = { type, id };
     chatTitle.textContent = type === "group" ? "👥 " + title : "💬 " + title;
     chatShell.hidden = false;
@@ -1811,13 +1926,20 @@
         const m = d.data();
         const n = await nameOf(m.senderId);
         const div = document.createElement("div");
-        div.className = "chat-msg" + (m.senderId === myId ? " mine" : "");
-        const media = m.mediaUrl ? (m.mediaType === "video"
-          ? '<video class="chat-video" controls preload="metadata" src="'+esc(m.mediaUrl)+'"></video>'
-          : '<img class="chat-media" loading="lazy" src="'+esc(m.mediaUrl)+'" alt="Shared image">') : "";
-        const tools = m.senderId !== myId ? '<div class="chat-tools"><button type="button" data-report-msg="'+d.id+'" data-sender="'+esc(m.senderId)+'">Report message</button><button type="button" data-block-msg="'+esc(m.senderId)+'">Block</button></div>' : "";
-        div.innerHTML = '<div class="who">' + esc(n) + '</div>' +
-          (m.text ? '<div>'+esc(m.text)+'</div>' : '') + media +
+        const pinged = m.senderId!==myId && Array.isArray(m.mentions) && m.mentions.includes(myId);
+        div.className = "chat-msg" + (m.senderId === myId ? " mine" : "") + (pinged ? " mentioned" : "");
+        div.dataset.messageId=d.id;
+        let media="";
+        if(m.mediaUrl){
+          if(m.mediaType==="video") media='<video class="chat-video" controls preload="metadata" src="'+esc(m.mediaUrl)+'"></video>';
+          else if(m.mediaType==="audio") media='<audio class="chat-voice" controls preload="metadata" src="'+esc(m.mediaUrl)+'"></audio>';
+          else media='<img class="chat-media" loading="lazy" src="'+esc(m.mediaUrl)+'" alt="Shared image">';
+        }
+        const reply = m.replyTo ? '<div class="reply-box" data-jump="'+esc(m.replyTo.id||"")+'"><b>'+esc(m.replyTo.senderName||"Message")+'</b>'+esc(m.replyTo.text||"")+'</div>' : "";
+        const tools = '<div class="chat-tools"><button class="reply-btn" type="button" data-reply-msg="'+d.id+'" data-reply-sender="'+esc(m.senderId)+'" data-reply-name="'+esc(n)+'" data-reply-text="'+esc((m.text||"Media message").slice(0,140))+'">Reply</button>' +
+          (m.senderId !== myId ? '<button type="button" data-report-msg="'+d.id+'" data-sender="'+esc(m.senderId)+'">Report</button><button type="button" data-block-msg="'+esc(m.senderId)+'">Block</button>' : '')+'</div>';
+        div.innerHTML = '<div class="who" data-mention-name="'+esc(n)+'">' + esc(n) + (pinged?' <span>• mentioned you</span>':'') + '</div>' +
+          reply + (m.text ? '<div>'+renderTextWithMentions(m.text)+'</div>' : '') + media +
           '<div class="when">' + esc(fmtTime(m.createdAt)) + '</div>' + tools;
         chatMessages.appendChild(div);
       }
@@ -1834,10 +1956,13 @@
 
   chatForm.addEventListener("submit", async function (e) {
     e.preventDefault();
+    if(sendLocked) return;
     const msg = chatInput.value.trim();
     const file = chatMediaFile.files && chatMediaFile.files[0];
-    if ((!msg && !file) || !currentChat || !myId) return;
+    const voice = recordedVoice;
+    if ((!msg && !file && !voice) || !currentChat || !myId) return;
     if (msg.length > 500) return;
+
     if (file) {
       const okImage=/^image\/(jpeg|png|webp)$/.test(file.type);
       const okVideo=/^video\/(mp4|webm)$/.test(file.type);
@@ -1845,32 +1970,62 @@
       const max=okVideo ? 25*1024*1024 : 8*1024*1024;
       if(file.size>max) return alert(okVideo ? "Videos must be 25 MB or smaller." : "Images must be 8 MB or smaller.");
     }
-    chatInput.disabled=true; chatAttach.disabled=true;
+    if(voice && voice.size>10*1024*1024) return alert("Voice messages must be 10 MB or smaller.");
+
+    sendLocked=true; chatInput.disabled=true; chatAttach.disabled=true; voiceRecord.disabled=true;
+    const originalChat={...currentChat};
+    const messageCol = originalChat.type === "group"
+      ? collection(db, "groups", originalChat.id, "messages")
+      : collection(db, "friendships", originalChat.id, "messages");
+    const messageRef = doc(messageCol); // one ID per send prevents duplicate message docs
+    const textBeforeSend=msg;
     try {
-      const col = currentChat.type === "group"
-        ? collection(db, "groups", currentChat.id, "messages")
-        : collection(db, "friendships", currentChat.id, "messages");
-      const messageRef = doc(col);
       let mediaUrl="", mediaPath="", mediaType="";
-      if(file){
-        const ext=(file.name.split(".").pop()||"bin").replace(/[^a-z0-9]/gi,"").toLowerCase();
-        mediaType=file.type.startsWith("video/") ? "video" : "image";
-        mediaPath=(currentChat.type==="group" ? "group_media/" : "friend_media/")+
-          currentChat.id+"/"+myId+"/"+messageRef.id+"."+ext;
-        const uploaded=await uploadToCloudinary(file);
-        mediaUrl=uploaded.url;
-        mediaPath=uploaded.publicId;
+      const uploadFile = voice ? new File([voice],"voice-message.webm",{type:voice.type||"audio/webm"}) : file;
+      if(uploadFile){
+        if(voice){
+          const fd=new FormData(); fd.append("file",uploadFile); fd.append("upload_preset",CLOUDINARY_UPLOAD_PRESET);
+          const res=await fetch("https://api.cloudinary.com/v1_1/"+CLOUDINARY_CLOUD_NAME+"/video/upload",{method:"POST",body:fd});
+          const data=await res.json(); if(!res.ok||!data.secure_url) throw new Error(data?.error?.message||"Voice upload failed");
+          mediaUrl=data.secure_url; mediaPath=data.public_id||""; mediaType="audio";
+        }else{
+          const uploaded=await uploadToCloudinary(uploadFile);
+          mediaUrl=uploaded.url; mediaPath=uploaded.publicId;
+          mediaType=uploadFile.type.startsWith("video/") ? "video" : "image";
+        }
       }
+
+      // Resolve @mentions against group members / friend participant names.
+      const mentions=[];
+      const wanted=[...msg.matchAll(/@([A-Za-z0-9_.-]{1,24})/g)].map(x=>x[1].toLowerCase());
+      if(wanted.length){
+        let candidates=[];
+        if(originalChat.type==="group"){
+          const gs=await getDoc(doc(db,"groups",originalChat.id)); candidates=gs.exists()?(gs.data().members||[]):[];
+        }else{
+          const fs=await getDoc(doc(db,"friendships",originalChat.id));
+          if(fs.exists()) candidates=[fs.data().a,fs.data().b];
+        }
+        for(const uid of candidates){
+          if(uid===myId) continue;
+          const nm=(await nameOf(uid)).toLowerCase();
+          if(wanted.includes(nm)) mentions.push(uid);
+        }
+      }
+
       await setDoc(messageRef, {
         senderId: myId, text: msg, mediaUrl, mediaPath, mediaType,
+        mentions:[...new Set(mentions)],
+        replyTo: replyingTo ? {id:replyingTo.id,senderId:replyingTo.senderId,senderName:replyingTo.senderName,text:replyingTo.text} : null,
         createdAt: serverTimestamp()
       });
-      chatInput.value=""; chatMediaFile.value="";
+      chatInput.value=""; chatMediaFile.value=""; recordedVoice=null; clearReply();
     } catch (err) {
       console.error(err);
-      alert("Message couldn't send. Check your Firestore rules and Cloudinary upload preset.");
+      chatInput.value=textBeforeSend;
+      alert("Message couldn't send. Your text was kept so you can retry.");
     } finally {
-      chatInput.disabled=false; chatAttach.disabled=false; chatInput.focus();
+      sendLocked=false; chatInput.disabled=false; chatAttach.disabled=false; voiceRecord.disabled=false; chatInput.focus();
     }
   });
 
@@ -1906,8 +2061,22 @@
   });
 
   chatMessages.addEventListener("click",async function(e){
+    const reply=e.target.closest("[data-reply-msg]");
+    const mention=e.target.closest("[data-mention-name]");
+    const jump=e.target.closest("[data-jump]");
     const r=e.target.closest("[data-report-msg]");
     const b=e.target.closest("[data-block-msg]");
+    if(reply){ setReply(reply.getAttribute("data-reply-msg"),reply.getAttribute("data-reply-sender"),reply.getAttribute("data-reply-name"),reply.getAttribute("data-reply-text")); return; }
+    if(mention){
+      const tag="@"+mention.getAttribute("data-mention-name");
+      if(!chatInput.value.includes(tag)) chatInput.value+=(chatInput.value?" ":"")+tag+" ";
+      chatInput.focus(); return;
+    }
+    if(jump){
+      const target=chatMessages.querySelector('[data-message-id="'+CSS.escape(jump.getAttribute("data-jump"))+'"]');
+      if(target) target.scrollIntoView({behavior:"smooth",block:"center"});
+      return;
+    }
     if(r){ openReport("message",r.getAttribute("data-sender"),r.getAttribute("data-report-msg")); return; }
     if(b){
       const uid=b.getAttribute("data-block-msg");
