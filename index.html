@@ -1187,9 +1187,6 @@
     collection, addDoc, query, where, onSnapshot, orderBy, limit,
     serverTimestamp, arrayUnion, arrayRemove, writeBatch
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-  import {
-    getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject
-  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAbgb_rUomORhOUx2Fl6lgO_pU6NN0eFEE",
@@ -1213,7 +1210,28 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
-  const storage = getStorage(app);
+  const CLOUDINARY_CLOUD_NAME = "ktnatf5d";
+  const CLOUDINARY_UPLOAD_PRESET = "apo_media";
+
+  async function uploadToCloudinary(file) {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    const resourceType = file.type.startsWith("video/") ? "video" : "image";
+    const res = await fetch(
+      "https://api.cloudinary.com/v1_1/" + CLOUDINARY_CLOUD_NAME + "/" + resourceType + "/upload",
+      { method: "POST", body: fd }
+    );
+    const data = await res.json();
+    if (!res.ok || !data.secure_url) {
+      throw new Error(data?.error?.message || "Cloudinary upload failed");
+    }
+    return {
+      url: data.secure_url,
+      publicId: data.public_id || "",
+      resourceType: data.resource_type || resourceType
+    };
+  }
 
   let myId = null, myName = "", liveStarted = false, authReady = false;
   const meName = document.getElementById("meName");
@@ -1252,21 +1270,25 @@
     if(f.size > 3*1024*1024) return alert("Profile pictures must be 3 MB or smaller.");
     avatarPick.disabled=true;
     try{
-      const ext=(f.name.split(".").pop()||"jpg").replace(/[^a-z0-9]/gi,"").toLowerCase();
-      const r=storageRef(storage,"avatars/"+myId+"/profile."+ext);
-      await uploadBytes(r,f,{contentType:f.type});
-      const url=await getDownloadURL(r);
-      await updateDoc(doc(db,"guests",myId),{avatarUrl:url,avatarPath:r.fullPath,updatedAt:serverTimestamp()});
+      const uploaded = await uploadToCloudinary(f);
+      await updateDoc(doc(db,"guests",myId),{
+        avatarUrl:uploaded.url,
+        avatarPublicId:uploaded.publicId,
+        updatedAt:serverTimestamp()
+      });
       paintMyAvatar();
-    }catch(e){ console.error(e); alert("Profile picture upload failed. Make sure Firebase Storage is enabled and its rules are published."); }
-    finally{ avatarPick.disabled=false; this.value=""; }
+    }catch(e){
+      console.error(e);
+      alert("Profile picture upload failed.");
+    }finally{
+      avatarPick.disabled=false;
+      this.value="";
+    }
   });
   avatarRemove.addEventListener("click", async function(){
     if(!myId) return;
     try{
       const g=await getDoc(doc(db,"guests",myId));
-      const path=g.exists() ? g.data().avatarPath : "";
-      if(path) try{ await deleteObject(storageRef(storage,path)); }catch(e){}
       await updateDoc(doc(db,"guests",myId),{avatarUrl:"",avatarPath:"",updatedAt:serverTimestamp()});
       paintMyAvatar();
     }catch(e){ console.error(e); }
@@ -1835,9 +1857,9 @@
         mediaType=file.type.startsWith("video/") ? "video" : "image";
         mediaPath=(currentChat.type==="group" ? "group_media/" : "friend_media/")+
           currentChat.id+"/"+myId+"/"+messageRef.id+"."+ext;
-        const r=storageRef(storage,mediaPath);
-        await uploadBytes(r,file,{contentType:file.type});
-        mediaUrl=await getDownloadURL(r);
+        const uploaded=await uploadToCloudinary(file);
+        mediaUrl=uploaded.url;
+        mediaPath=uploaded.publicId;
       }
       await setDoc(messageRef, {
         senderId: myId, text: msg, mediaUrl, mediaPath, mediaType,
@@ -1846,7 +1868,7 @@
       chatInput.value=""; chatMediaFile.value="";
     } catch (err) {
       console.error(err);
-      alert("Message couldn't send. Check Firestore and Storage rules.");
+      alert("Message couldn't send. Check your Firestore rules and Cloudinary upload preset.");
     } finally {
       chatInput.disabled=false; chatAttach.disabled=false; chatInput.focus();
     }
