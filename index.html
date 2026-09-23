@@ -886,15 +886,28 @@ async function openGroup(g){
  listenMessages(collection(db,"groups",g.id,"messages"));
 }
 function listenMessages(col){
- const u=onSnapshot(query(col,orderBy("createdAt","asc"),limit(100)),snap=>{
+ // Load the newest 100 messages, not the oldest 100.
+ // Old chats can have more than 100 messages; using ASC + limit(100)
+ // made newly sent messages disappear from older DMs/GCs.
+ const u=onSnapshot(query(col,orderBy("createdAt","desc"),limit(100)),snap=>{
   const box=$("messages");box.innerHTML="";
-  if(!snap.size)box.innerHTML='<div class="welcome"><div class="welcomeBox"><h1>No messages yet</h1><p>Start the conversation.</p></div></div>';
-  snap.forEach(d=>renderMessage(box,d.id,d.data()));box.scrollTop=box.scrollHeight;
- },e=>{console.error(e);$("messages").innerHTML='<div class="emptyList" style="margin:auto">Chat could not load.</div>'});
+  if(!snap.size){
+   box.innerHTML='<div class="welcome"><div class="welcomeBox"><h1>No messages yet</h1><p>Start the conversation.</p></div></div>';
+   return;
+  }
+  const docs=[...snap.docs].reverse();
+  docs.forEach(d=>renderMessage(box,d.id,d.data()));
+  box.scrollTop=box.scrollHeight;
+ },e=>{
+  console.error(e);
+  $("messages").innerHTML='<div class="emptyList" style="margin:auto">Chat could not load.</div>';
+ });
  chatUnsubs.push(u);
 }
 function renderMessage(box,id,m){
  if(m.senderId!==uid&&blockedIds.has(m.senderId))return;
+ // Read both the current text field and older legacy field names.
+ const messageText=String(m.text ?? m.message ?? m.content ?? "");
  const el=document.createElement("div");el.className="msg"+(m.senderId===uid?" mine":"");
  const name=m.senderName||(m.senderId===uid?me?.name:"Member");
  let media="";
@@ -906,9 +919,9 @@ function renderMessage(box,id,m){
  const tools=m.senderId===uid
   ? `<button data-reply="${esc(id)}">Reply</button>`
   : `<button data-reply="${esc(id)}">Reply</button><button data-report-message="${esc(id)}" data-sender="${esc(m.senderId)}">Report</button><button data-block-message="${esc(m.senderId)}">Block</button>`;
- el.innerHTML=`<div class="mavatar">${esc(initial(name))}</div><div class="meta"><span class="name">${esc(name)}</span><span class="time">${esc(fmt(m.createdAt))}</span></div>${m.replyTo?`<div class="reply">↪ ${esc(m.replyTo.senderName||"Member")}: ${esc((m.replyTo.text||"Media message").slice(0,90))}</div>`:""}<div class="body">${esc(m.text||"")}${media}</div><div class="mtools">${tools}</div>`;
+ el.innerHTML=`<div class="mavatar">${esc(initial(name))}</div><div class="meta"><span class="name">${esc(name)}</span><span class="time">${esc(fmt(m.createdAt))}</span></div>${m.replyTo?`<div class="reply">↪ ${esc(m.replyTo.senderName||"Member")}: ${esc((m.replyTo.text||"Media message").slice(0,90))}</div>`:""}<div class="body">${esc(messageText)}${media}</div><div class="mtools">${tools}</div>`;
  const replyBtn=el.querySelector("[data-reply]");
- if(replyBtn)replyBtn.onclick=()=>{replying={id,senderId:m.senderId,senderName:name,text:m.text||"Media message"};$("replyText").textContent=`Replying to ${name}: ${(m.text||"Media message").slice(0,80)}`;$("replyBar").classList.add("show");$("messageInput").focus()};
+ if(replyBtn)replyBtn.onclick=()=>{replying={id,senderId:m.senderId,senderName:name,text:messageText||"Media message"};$("replyText").textContent=`Replying to ${name}: ${(messageText||"Media message").slice(0,80)}`;$("replyBar").classList.add("show");$("messageInput").focus()};
  const reportBtn=el.querySelector("[data-report-message]");if(reportBtn)reportBtn.onclick=()=>openQuickReport("message",m.senderId,id);
  const blockBtn=el.querySelector("[data-block-message]");if(blockBtn)blockBtn.onclick=()=>blockUser(m.senderId);
  box.appendChild(el);
