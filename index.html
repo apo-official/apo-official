@@ -23,6 +23,9 @@
 .stepsList article>span{width:38px;height:38px;flex:0 0 auto;display:grid;place-items:center;border-radius:12px;background:#f5a623;color:#111;font-weight:900}
 .stepsList h3{margin:2px 0 6px}.stepsList p{margin:0}
 @media(max-width:720px){.safetyNav{display:grid;grid-template-columns:1fr 1fr}.safetyBtn{padding:11px 8px}.safetyGrid{grid-template-columns:1fr}}
+
+.armyForm{margin-top:24px;display:grid;gap:16px;padding-top:22px;border-top:1px solid rgba(255,255,255,.08)}
+.armyForm label{display:grid;gap:8px;color:#b7c0cd;font-weight:700}.armyForm .agree{display:flex;align-items:flex-start;gap:10px;font-weight:500}.armyForm .agree input{width:auto;margin-top:5px}
 </style>
 </head><body>
 <div class="site">
@@ -76,6 +79,14 @@
   <div><small>WHAT MODERATORS DO</small><h3>Keep APO running safely.</h3></div>
   <div class="checkGrid"><span>✓ Moderate community chat</span><span>✓ Handle spam and raids</span><span>✓ Enforce community rules</span><span>✓ Direct safety concerns to proper reporting channels</span></div>
   <button class="primary" id="armyApply">Start Application</button>
+  <div id="armyForm" class="armyForm" style="display:none">
+   <label>APO username<input id="armyName" maxlength="40" placeholder="Your APO username"></label>
+   <label>Why do you want to help?<textarea id="armyWhy" maxlength="800" placeholder="Tell us why you want to help moderate the APO community."></textarea></label>
+   <label>How would you handle a member breaking a rule?<textarea id="armyScenario" maxlength="800" placeholder="Explain how you would respond safely and fairly."></textarea></label>
+   <label class="agree"><input id="armyAgree" type="checkbox"> I understand APO Army is community moderation, not vigilante investigation or confrontation.</label>
+   <button class="primary" id="submitArmy">Save Application</button>
+   <p id="armyStatus" class="safeNote"></p>
+  </div>
  </div>
 </section>
 
@@ -170,9 +181,19 @@
  </div>
 </div>
 </div>
+
+<div id="apoCompat" hidden>
+ <span id="headTitle"></span><span id="headSub"></span><span id="headIcon"></span>
+ <span id="myNameLabel"></span><span id="myAvatar"></span>
+ <span id="reqBadge"></span><div id="dmNav"></div><div id="groupNav"></div>
+ <div id="messagesView"></div><div id="chatBottom"></div>
+ <span id="rightTitle"></span><div id="memberList"></div>
+ <button id="settingsBtn"></button><button id="refreshBtn"></button>
+ <span id="profileAvatar"></span><span id="profileStatus"></span>
+</div>
 <div id="app" style="display:contents"><div id="chatHeader" hidden></div><div id="chatHeaderSub" hidden></div></div><script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {getAuth,signInAnonymously,onAuthStateChanged,setPersistence,browserLocalPersistence} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {getFirestore,doc,setDoc,getDoc,getDocs,updateDoc,deleteDoc,collection,addDoc,query,where,onSnapshot,orderBy,limit,serverTimestamp,arrayUnion,arrayRemove} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig={apiKey:"AIzaSyAbgb_rUomORhOUx2Fl6lgO_pU6NN0eFEE",authDomain:"apo-commiunity.firebaseapp.com",projectId:"apo-commiunity",storageBucket:"apo-commiunity.firebasestorage.app",messagingSenderId:"481585127676",appId:"1:481585127676:web:af49cae58a802693a67779",measurementId:"G-2QMT19FBD0"};
@@ -190,23 +211,22 @@ function paintAvatar(el,name,url){if(!el)return;el.textContent=url?"":initial(na
 function cleanupChat(){unsubs.splice(0).forEach(f=>{try{f()}catch{}});activeChat=null;replying=null;$("replyBar").classList.remove("show")}
 function setHeader(t,s="",icon="#"){$("headTitle").textContent=t;$("headSub").textContent=s;$("headIcon").textContent=icon}
 function showPage(page){
- cleanupChat();$("app")?.classList.remove("chatOpen");if(window.matchMedia("(max-width:680px)").matches){if(page==="home")$("app")?.classList.remove("pageOpen");else $("app")?.classList.add("pageOpen")}else $("app")?.classList.remove("pageOpen");["home","friends","requests","groups","info","report","team","army","legacy"].forEach(x=>$(x+"View").style.display=x===page?(x==="home"?"grid":"block"):"none");$("messagesView").hidden=true;$("chatBottom").hidden=true;
+ cleanupChat();$("app")?.classList.remove("chatOpen");if(window.matchMedia("(max-width:680px)").matches){if(page==="home")$("app")?.classList.remove("pageOpen");else $("app")?.classList.add("pageOpen")}else $("app")?.classList.remove("pageOpen");["home","friends","requests","groups","info","report","team","army","legacy"].forEach(x=>$(x+"View").style.display=x===page?(x==="home"?"grid":"block"):"none");$("chatView").style.display="none";
  document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("on",b.dataset.page===page));
  if(page==="home")setHeader("Home","APO communication","⌂");if(page==="friends")setHeader("Friends","Find people and open DMs","♙");if(page==="requests")setHeader("Requests","Incoming friend requests","◇");if(page==="groups")setHeader("Groups","Create and open group chats","♧");if(page==="info")setHeader("APO Info","Official APO information • read only","ⓘ");if(page==="report")setHeader("Safety Report","Report serious safety concerns","⚑");if(page==="team")setHeader("APO Team","Who runs APO","♜");if(page==="legacy")setHeader("All APO Info","Information carried over from the original APO website","▤");
 }
 document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>showPage(b.dataset.page));$("mobileBack").onclick=()=>{$("app")?.classList.remove("chatOpen","pageOpen");showPage("home")};
 
 async function profile(id){const s=await getDoc(doc(db,"guests",id));return s.exists()?s.data():{name:"Unknown"}}
-function openSettings(){$("settingsModal").classList.add("on");$("profileName").value=me?.name||"";paintAvatar($("profileAvatar"),me?.name,me?.avatarUrl)}$("settingsBtn").onclick=openSettings;$("settingsRail").onclick=openSettings;$("closeSettings").onclick=()=>$("settingsModal").classList.remove("on");$("settingsModal").onclick=e=>{if(e.target===$("settingsModal"))$("settingsModal").classList.remove("on")};
-$("avatarFile").onchange=e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>6*1024*1024){$("profileStatus").textContent="Picture must be under 6 MB.";return}pendingAvatarFile=f;paintAvatar($("profileAvatar"),me?.name,URL.createObjectURL(f))};
+function openSettings(){$("profileModal").style.display="grid";$("profileName").value=me?.name||"";paintAvatar($("avatarPreview"),me?.name,me?.avatarUrl)}$("settingsBtn").onclick=openSettings;$("settingsRail").onclick=openSettings;$("closeProfile").onclick=()=>$("profileModal").style.display="none";$("avatarFile").onchange=e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>6*1024*1024){console.log("Picture must be under 6 MB.");return}pendingAvatarFile=f;paintAvatar($("profileAvatar"),me?.name,URL.createObjectURL(f))};
 
 $("saveProfile").onclick=async()=>{
- const name=$("profileName").value.trim();if(name.length<2){$("profileStatus").textContent="Use at least 2 characters.";return}if(reserved.includes(name.toLowerCase())){$("profileStatus").textContent="That name is reserved.";return}
- $("saveProfile").disabled=true;$("profileStatus").textContent="Saving…";
- try{let avatarUrl=me?.avatarUrl||"";if(pendingAvatarFile){$("profileStatus").textContent="Uploading picture…";avatarUrl=await uploadAvatar(pendingAvatarFile)}await setDoc(doc(db,"guests",uid),{uid,name,nameLower:name.toLowerCase(),avatarUrl,updatedAt:serverTimestamp()},{merge:true});me={...(me||{}),uid,name,avatarUrl};pendingAvatarFile=null;renderMe();$("profileStatus").textContent="Profile saved."}
- catch(e){console.error(e);$("profileStatus").textContent="Could not save profile. Check connection / Firestore rules."}finally{$("saveProfile").disabled=false}
+ const name=$("profileName").value.trim();if(name.length<2){console.log("Use at least 2 characters.");return}if(reserved.includes(name.toLowerCase())){console.log("That name is reserved.");return}
+ $("saveProfile").disabled=true;console.log("Saving…");
+ try{let avatarUrl=me?.avatarUrl||"";if(pendingAvatarFile){console.log("Uploading picture…");avatarUrl=await uploadAvatar(pendingAvatarFile)}await setDoc(doc(db,"guests",uid),{uid,name,nameLower:name.toLowerCase(),avatarUrl,updatedAt:serverTimestamp()},{merge:true});me={...(me||{}),uid,name,avatarUrl};pendingAvatarFile=null;renderMe();console.log("Profile saved."}
+ catch(e){console.error(e);console.log("Could not save profile. Check connection / Firestore rules."}finally{$("saveProfile").disabled=false}
 };
-function renderMe(){$("myNameLabel").textContent=me?.name||"Pick a username";paintAvatar($("myAvatar"),me?.name,me?.avatarUrl);paintAvatar($("profileAvatar"),me?.name,me?.avatarUrl);$("profileName").value=me?.name||""}
+function renderMe(){$("myNameLabel").textContent=me?.name||"Pick a username";paintAvatar($("myAvatar"),me?.name,me?.avatarUrl);paintAvatar($("avatarPreview"),me?.name,me?.avatarUrl);$("profileName").value=me?.name||""}
 
 $("findBtn").onclick=async()=>{
  const qv=$("findInput").value.trim().toLowerCase();if(!qv)return;const box=$("findResults");box.innerHTML='<div class="emptyList">Searching…</div>';
@@ -215,14 +235,14 @@ $("findBtn").onclick=async()=>{
 async function sendRequest(toId,toName,b){b.disabled=true;try{const id=uid+"_"+toId;await setDoc(doc(db,"friend_requests",id),{fromId:uid,toId,fromName:me.name,toName,status:"pending",createdAt:serverTimestamp()});b.textContent="Sent"}catch(e){console.error(e);b.disabled=false;b.textContent="Failed"}}
 
 function listenRequests(){
- return onSnapshot(query(collection(db,"friend_requests"),where("toId","==",uid)),snap=>{const pending=snap.docs.filter(d=>d.data().status==="pending");$("reqBadge").hidden=!pending.length;$("reqBadge").textContent=pending.length;$("requestsList").innerHTML="";pending.forEach(d=>{const x=d.data(),r=document.createElement("div");r.className="row";r.innerHTML=`<div class="avatar">${esc(initial(x.fromName))}</div><div class="info"><b>${esc(x.fromName||"Member")}</b><small>Wants to be friends</small></div><button class="btn ok">Accept</button><button class="btn danger">Decline</button>`;const [a,z]=r.querySelectorAll("button");a.onclick=async()=>{const A=x.fromId<uid?x.fromId:uid,B=x.fromId<uid?uid:x.fromId;await setDoc(doc(db,"friendships",A+"_"+B),{a:A,b:B,createdAt:serverTimestamp()});await updateDoc(d.ref,{status:"accepted",respondedAt:serverTimestamp()})};z.onclick=()=>updateDoc(d.ref,{status:"declined",respondedAt:serverTimestamp()});$("requestsList").appendChild(r)});if(!pending.length)$("requestsList").innerHTML='<div class="emptyList">No pending requests.</div>'})
+ return onSnapshot(query(collection(db,"friend_requests"),where("toId","==",uid)),snap=>{const pending=snap.docs.filter(d=>d.data().status==="pending");$("requestsList").innerHTML="";pending.forEach(d=>{const x=d.data(),r=document.createElement("div");r.className="row";r.innerHTML=`<div class="avatar">${esc(initial(x.fromName))}</div><div class="info"><b>${esc(x.fromName||"Member")}</b><small>Wants to be friends</small></div><button class="btn ok">Accept</button><button class="btn danger">Decline</button>`;const [a,z]=r.querySelectorAll("button");a.onclick=async()=>{const A=x.fromId<uid?x.fromId:uid,B=x.fromId<uid?uid:x.fromId;await setDoc(doc(db,"friendships",A+"_"+B),{a:A,b:B,createdAt:serverTimestamp()});await updateDoc(d.ref,{status:"accepted",respondedAt:serverTimestamp()})};z.onclick=()=>updateDoc(d.ref,{status:"declined",respondedAt:serverTimestamp()});$("requestsList").appendChild(r)});if(!pending.length)$("requestsList").innerHTML='<div class="emptyList">No pending requests.</div>'})
 }
 function listenFriends(){
  const a=onSnapshot(query(collection(db,"friendships"),where("a","==",uid)),s=>mergeFriends(s,"a"));
  const b=onSnapshot(query(collection(db,"friendships"),where("b","==",uid)),s=>mergeFriends(s,"b"));return()=>{a();b()}
 }
 async function mergeFriends(s,side){for(const d of s.docs){const x=d.data(),other=side==="a"?x.b:x.a;if(!friendMap.has(other)){const p=await profile(other);friendMap.set(other,{id:other,name:p.name||"Member",fid:d.id})}}renderFriends()}
-function renderFriends(){const list=$("friendsList"),nav=$("dmNav");list.innerHTML="";nav.innerHTML="";for(const f of friendMap.values()){const r=document.createElement("div");r.className="row";r.innerHTML=`<div class="avatar">${esc(initial(f.name))}</div><div class="info"><b>${esc(f.name)}</b><small>Friend</small></div><button class="btn">Message</button>`;r.querySelector("button").onclick=()=>openDM(f);list.appendChild(r);const b=document.createElement("button");b.innerHTML=`<span class="avatar" style="width:27px;height:27px;font-size:11px">${esc(initial(f.name))}</span><span>${esc(f.name)}</span>`;b.onclick=()=>openDM(f);nav.appendChild(b)}if(!friendMap.size)list.innerHTML='<div class="emptyList">No friends yet. Search for someone above.</div>'}
+function renderFriends(){const list=$("friendsList");list.innerHTML="";for(const f of friendMap.values()){const r=document.createElement("div");r.className="row";r.innerHTML=`<div class="avatar">${esc(initial(f.name))}</div><div class="info"><b>${esc(f.name)}</b><small>Friend</small></div><button class="btn">Message</button>`;r.querySelector("button").onclick=()=>openDM(f);list.appendChild(r)}if(!friendMap.size)list.innerHTML='<div class="emptyList">No friends yet. Search for someone above.</div>'}
 
 $("createGroup").onclick=async()=>{
  const name=$("groupName").value.trim();
@@ -241,34 +261,35 @@ function listenGroups(){
  const joined=onSnapshot(query(collection(db,"groups"),where("members","array-contains",uid)),snap=>{groupMap.clear();snap.forEach(d=>groupMap.set(d.id,{id:d.id,...d.data()}));renderMyGroups()},e=>{console.error("groups",e);$("groupsList").innerHTML='<div class="emptyList">Groups could not load.</div>'});
  return joined
 }
-function renderMyGroups(){const list=$("groupsList"),nav=$("groupNav");list.innerHTML="";nav.innerHTML="";for(const g of groupMap.values()){const r=document.createElement("div");r.className="row";r.innerHTML=`<div class="avatar">#</div><div class="info"><b>${esc(g.name||"Group")}</b><small>${(g.members||[]).length} member(s)</small></div><button class="btn">Open</button>`;r.querySelector("button").onclick=()=>openGroup(g);list.appendChild(r);const x=document.createElement("button");x.innerHTML=`# <span>${esc(g.name||"Group")}</span>`;x.onclick=()=>openGroup(g);nav.appendChild(x)}if(!groupMap.size)list.innerHTML='<div class="emptyList">No groups yet. Create your first one above.</div>'}
-function enterChat(title,sub){["home","friends","requests","groups","info","report","team","army","legacy"].forEach(x=>$(x+"View").style.display="none");$("messagesView").hidden=false;$("chatBottom").hidden=false;$("app")?.classList.remove("pageOpen");$("app")?.classList.add("chatOpen");setHeader(title,sub,"#");$("messagesView").innerHTML='<div class="emptyList" style="margin:auto">Loading messages…</div>'}
-async function openDM(f){cleanupChat();activeChat={type:"dm",id:f.fid,title:f.name,other:f.id};enterChat(f.name,"Direct message");$("rightTitle").textContent="DIRECT MESSAGE";$("memberList").innerHTML=`<div class="member"><div class="avatar">${esc(initial(f.name))}</div><b>${esc(f.name)}</b><i class="dot"></i></div>`;listenMessages(collection(db,"friendships",f.fid,"messages"))}
-async function openGroup(g){cleanupChat();activeChat={type:"group",id:g.id,title:g.name};enterChat(g.name,"Group chat");$("rightTitle").textContent="MEMBERS";$("memberList").innerHTML="";for(const id of (g.members||[])){const p=await profile(id),m=document.createElement("div");m.className="member";m.innerHTML=`<div class="avatar">${esc(initial(p.name))}</div><b>${esc(p.name||"Member")}</b><i class="dot"></i>`;$("memberList").appendChild(m)}listenMessages(collection(db,"groups",g.id,"messages"))}
-function listenMessages(col){const u=onSnapshot(query(col,orderBy("createdAt","asc"),limit(100)),snap=>{const box=$("messagesView");box.innerHTML="";if(!snap.size)box.innerHTML='<div class="welcome"><div class="welcomeBox"><h1>No messages yet</h1><p>Start the conversation.</p></div></div>';snap.forEach(d=>renderMessage(box,d.id,d.data()));box.scrollTop=box.scrollHeight},e=>{console.error(e);$("messagesView").innerHTML='<div class="emptyList" style="margin:auto">Chat could not load. Check Firestore rules.</div>'});unsubs.push(u)}
+function renderMyGroups(){const list=$("groupsList");list.innerHTML="";for(const g of groupMap.values()){const r=document.createElement("div");r.className="row";r.innerHTML=`<div class="avatar">#</div><div class="info"><b>${esc(g.name||"Group")}</b><small>${(g.members||[]).length} member(s)</small></div><button class="btn">Open</button>`;r.querySelector("button").onclick=()=>openGroup(g);list.appendChild(r)}if(!groupMap.size)list.innerHTML='<div class="emptyList">No groups yet. Create your first one above.</div>'}
+function enterChat(title,sub){["home","friends","requests","groups","info","report","team","army","legacy"].forEach(x=>$(x+"View").style.display="none");$("chatView").style.display="block";$("app")?.classList.remove("pageOpen");$("app")?.classList.add("chatOpen");setHeader(title,sub,"#");$("messages").innerHTML='<div class="emptyList" style="margin:auto">Loading messages…</div>';$("chatView").style.display="block"}
+async function openDM(f){cleanupChat();activeChat={type:"dm",id:f.fid,title:f.name,other:f.id};enterChat(f.name,"Direct message");$("chatTitle").textContent=f.name;$("chatSub").textContent="Direct message";listenMessages(collection(db,"friendships",f.fid,"messages"))}
+async function openGroup(g){cleanupChat();activeChat={type:"group",id:g.id,title:g.name};enterChat(g.name,"Group chat");$("chatTitle").textContent=g.name;$("chatSub").textContent="Group chat";listenMessages(collection(db,"groups",g.id,"messages"))}
+function listenMessages(col){const u=onSnapshot(query(col,orderBy("createdAt","asc"),limit(100)),snap=>{const box=$("messages");box.innerHTML="";if(!snap.size)box.innerHTML='<div class="welcome"><div class="welcomeBox"><h1>No messages yet</h1><p>Start the conversation.</p></div></div>';snap.forEach(d=>renderMessage(box,d.id,d.data()));box.scrollTop=box.scrollHeight},e=>{console.error(e);$("messages").innerHTML='<div class="emptyList" style="margin:auto">Chat could not load. Check Firestore rules.</div>'});unsubs.push(u)}
 function renderMessage(box,id,m){const el=document.createElement("div");el.className="msg"+(m.senderId===uid?" mine":"");const name=m.senderName||(m.senderId===uid?me.name:"Member");el.innerHTML=`<div class="mavatar">${esc(initial(name))}</div><div class="meta"><span class="name">${esc(name)}</span><span class="time">${esc(fmt(m.createdAt))}</span></div>${m.replyTo?`<div class="reply">↪ ${esc(m.replyTo.senderName||"Member")}: ${esc((m.replyTo.text||"").slice(0,90))}</div>`:""}<div class="body">${esc(m.text||"")}</div><div class="mtools"><button title="Reply">↩</button></div>`;el.querySelector(".mtools button").onclick=()=>{replying={id,senderId:m.senderId,senderName:name,text:m.text||""};$("replyText").textContent=`Replying to ${name}: ${(m.text||"").slice(0,80)}`;$("replyBar").classList.add("show");$("messageInput").focus()};box.appendChild(el)}
 $("cancelReply").onclick=()=>{replying=null;$("replyBar").classList.remove("show")};
-$("messageForm").onsubmit=async e=>{e.preventDefault();const text=$("messageInput").value.trim();if(!text||!activeChat)return;$("sendBtn").disabled=true;const data={senderId:uid,senderName:me.name,text,mediaUrl:"",mediaPath:"",mediaType:"",mentions:[],replyTo:replying?{id:replying.id,senderId:replying.senderId,senderName:replying.senderName,text:replying.text}:null,createdAt:serverTimestamp()};try{const col=activeChat.type==="dm"?collection(db,"friendships",activeChat.id,"messages"):collection(db,"groups",activeChat.id,"messages");await setDoc(doc(col),data);$("messageInput").value="";replying=null;$("replyBar").classList.remove("show")}catch(err){console.error(err);alert("Message couldn't send. Your text was kept.")}finally{$("sendBtn").disabled=false}};
-
-$("submitSafetyReport").onclick=async()=>{
- if(!uid){$("reportStatus").textContent="Still connecting. Try again in a moment.";return}
- const reportedUser=$("reportUser").value.trim(), evidenceLink=$("reportLink").value.trim(), details=$("reportDetails").value.trim(), category=$("reportType").value;
- if(!reportedUser || details.length<10){$("reportStatus").textContent="Add the account name and a short explanation.";return}
- const b=$("submitSafetyReport");b.disabled=true;$("reportStatus").textContent="Submitting…";
- try{
-  await setDoc(doc(collection(db,"reports")),{
-   reporterId:uid,reportedUser,category,evidenceLink,details,status:"open",createdAt:serverTimestamp()
-  });
-  $("reportUser").value="";$("reportLink").value="";$("reportDetails").value="";
-  $("reportStatus").textContent="Report submitted to APO.";
- }catch(e){console.error(e);$("reportStatus").textContent="Could not submit. Check the Firestore report rules."}
- finally{b.disabled=false}
-};
+$("messageForm").onsubmit=async e=>{e.preventDefault();const text=$("messageInput").value.trim();if(!text||!activeChat)return;document.querySelector(".sendButton").disabled=true;const data={senderId:uid,senderName:me.name,text,mediaUrl:"",mediaPath:"",mediaType:"",mentions:[],replyTo:replying?{id:replying.id,senderId:replying.senderId,senderName:replying.senderName,text:replying.text}:null,createdAt:serverTimestamp()};try{const col=activeChat.type==="dm"?collection(db,"friendships",activeChat.id,"messages"):collection(db,"groups",activeChat.id,"messages");await setDoc(doc(col),data);$("messageInput").value="";replying=null;$("replyBar").classList.remove("show")}catch(err){console.error(err);alert("Message couldn't send. Your text was kept.")}finally{document.querySelector(".sendButton").disabled=false}};
 
 $("refreshBtn").onclick=()=>location.reload();
 
+
+const newReportButton=$("submitReport");
+if(newReportButton)newReportButton.onclick=async()=>{
+ if(!uid){alert("APO is still connecting. Try again in a moment.");return}
+ const reportedUser=$("reportedUser").value.trim(),evidenceLink=$("evidenceLink").value.trim(),
+ category=$("reportCategory").value,details=$("reportDetails").value.trim();
+ if(!reportedUser||details.length<10){alert("Add the account name and a short explanation.");return}
+ newReportButton.disabled=true;newReportButton.textContent="Submitting…";
+ try{
+  await setDoc(doc(collection(db,"reports")),{reporterId:uid,reportedUser,category,evidenceLink,details,status:"open",createdAt:serverTimestamp()});
+  $("reportedUser").value="";$("evidenceLink").value="";$("reportDetails").value="";
+  alert("Report submitted to APO.");
+ }catch(e){console.error(e);alert("The report could not be submitted.")}
+ finally{newReportButton.disabled=false;newReportButton.textContent="Submit report"}
+};
+
 onAuthStateChanged(auth,async user=>{if(!user)return;uid=user.uid;const s=await getDoc(doc(db,"guests",uid));if(s.exists())me={uid,...s.data()};else{me={uid,name:""};openSettings()}renderMe();listenRequests();listenFriends();listenGroups()});
-signInAnonymously(auth).catch(e=>{console.error(e);$("myNameLabel").textContent="Connection failed"});
+setPersistence(auth,browserLocalPersistence).then(()=>signInAnonymously(auth)).catch(e=>{console.error(e);$("myNameLabel").textContent="Connection failed"});
 showPage("home");
 window.addEventListener("resize",()=>{if(!window.matchMedia("(max-width:680px)").matches)$("app")?.classList.remove("pageOpen")});
 </script>
@@ -283,13 +304,28 @@ window.addEventListener("resize",()=>{if(!window.matchMedia("(max-width:680px)")
    window.scrollTo({top:0,behavior:"smooth"});
  }
  document.querySelectorAll(".navGo").forEach(b=>b.addEventListener("click",()=>openPage(b.dataset.page)));
- document.getElementById("armyApply")?.addEventListener("click",()=>alert("APO Army application form is being prepared."));
+ document.getElementById("armyApply")?.addEventListener("click",()=>{
+ const f=document.getElementById("armyForm");f.style.display=f.style.display==="none"?"grid":"none";
+ if(f.style.display==="grid")f.scrollIntoView({behavior:"smooth",block:"center"});
+});
+document.getElementById("submitArmy")?.addEventListener("click",()=>{
+ const name=document.getElementById("armyName").value.trim();
+ const why=document.getElementById("armyWhy").value.trim();
+ const scenario=document.getElementById("armyScenario").value.trim();
+ const agree=document.getElementById("armyAgree").checked;
+ const status=document.getElementById("armyStatus");
+ if(name.length<2||why.length<20||scenario.length<20||!agree){status.textContent="Complete every field and confirm the safety rule.";return}
+ const application={name,why,scenario,savedAt:new Date().toISOString()};
+ localStorage.setItem("apoArmyApplication",JSON.stringify(application));
+ status.textContent="Application saved on this device. You can return and edit it before APO adds server-side application review.";
+});
  // Bridge legacy script navigation buttons if it calls showPage.
  window.apoOpenPage=openPage;
 })();
 </script>
 <script>
 document.addEventListener("DOMContentLoaded",()=>{
+ try{const a=JSON.parse(localStorage.getItem("apoArmyApplication")||"null");if(a){document.getElementById("armyName").value=a.name||"";document.getElementById("armyWhy").value=a.why||"";document.getElementById("armyScenario").value=a.scenario||"";document.getElementById("armyAgree").checked=true}}catch{}
  document.querySelectorAll(".safetyBtn").forEach(btn=>{
   btn.addEventListener("click",()=>{
    document.querySelectorAll(".safetyBtn").forEach(x=>x.classList.remove("active"));
