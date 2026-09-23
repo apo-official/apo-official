@@ -276,7 +276,7 @@ body.highcontrast{--surface:#111820;--surface2:#18212d;--line:rgba(255,255,255,.
       <div class="communityHead">
         <button class="backHome" data-page="home">←</button>
         <div><small>APO COMMUNITY</small><h2>Friends</h2></div>
-        <button class="profileButton" onclick="document.getElementById('settingsBtn').click()">Profile</button>
+        <button class="profileButton">Profile</button>
       </div>
       <div class="communityTabs">
         <button class="on" data-page="friends">Friends</button>
@@ -507,6 +507,133 @@ body.highcontrast{--surface:#111820;--surface2:#18212d;--line:rgba(255,255,255,.
 
 </div>
 
+
+<script id="apo-ui-controller">
+(function(){
+  const byId=id=>document.getElementById(id);
+  const pageNames=["home","friends","requests","groups","info","report","team","army","join","download","appeal","legacy","chat"];
+
+  function openPage(name){
+    pageNames.forEach(p=>{
+      const el=byId(p+"View");
+      if(el) el.style.display=(p===name)?(p==="home"?"grid":"block"):"none";
+    });
+    document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("on",b.dataset.page===name));
+    const meta={
+      home:["Home","APO communication","⌂"],friends:["Friends","Find people and open DMs","♙"],
+      requests:["Requests","Incoming friend requests","◇"],groups:["Groups","Create and open group chats","♧"],
+      info:["About APO","Official APO information","ⓘ"],report:["Safety Center","Rules, reporting and account safety","⚑"],
+      team:["APO Team","Leadership and moderation","♜"],army:["APO Army","Community moderation applications","◈"],
+      join:["Join APO","Invite people to the community","＋"],download:["Download","APO Android app","↓"],
+      appeal:["Appeals","Moderation review requests","↺"],legacy:["Resources","APO resources","▤"]
+    }[name]||["APO","","#"];
+    if(byId("headTitle")) byId("headTitle").textContent=meta[0];
+    if(byId("headSub")) byId("headSub").textContent=meta[1];
+    if(byId("headIcon")) byId("headIcon").textContent=meta[2];
+    try{window.scrollTo({top:0,behavior:"smooth"})}catch{}
+  }
+
+  // Capture-phase listener so navigation works even if Firebase JS fails completely.
+  document.addEventListener("click",e=>{
+    const nav=e.target.closest("[data-page]");
+    if(nav){
+      e.preventDefault();
+      openPage(nav.dataset.page);
+      return;
+    }
+
+    if(e.target.closest("#settingsBtn,#settingsRail,.profileButton")){
+      e.preventDefault();
+      const m=byId("profileModal");
+      if(m) m.style.display="grid";
+      return;
+    }
+
+    if(e.target.closest("#closeProfile")){
+      e.preventDefault();
+      if(byId("profileModal")) byId("profileModal").style.display="none";
+      return;
+    }
+
+    const safety=e.target.closest(".safetyBtn");
+    if(safety){
+      e.preventDefault();
+      document.querySelectorAll(".safetyBtn").forEach(x=>x.classList.remove("active"));
+      document.querySelectorAll(".safetyPane").forEach(x=>x.classList.remove("active"));
+      safety.classList.add("active");
+      const pane=byId("safety-"+safety.dataset.safety);
+      if(pane)pane.classList.add("active");
+      return;
+    }
+
+    if(e.target.closest("#armyApply")){
+      e.preventDefault();
+      const f=byId("armyForm");
+      if(f){
+        f.style.display=f.style.display==="none"?"grid":"none";
+        if(f.style.display==="grid")f.scrollIntoView({behavior:"smooth",block:"center"});
+      }
+      return;
+    }
+
+    if(e.target.closest("#joinNowBtn")){
+      e.preventDefault();
+      openPage("friends");
+      return;
+    }
+
+    if(e.target.closest("#mobileBack")){
+      e.preventDefault();
+      openPage("friends");
+      return;
+    }
+  },true);
+
+  // Modal backdrop close.
+  byId("profileModal")?.addEventListener("click",e=>{
+    if(e.target===byId("profileModal"))byId("profileModal").style.display="none";
+  });
+
+  // Local-only settings always work.
+  const motion=byId("motionToggle"),contrast=byId("contrastToggle");
+  function applyAppearance(){
+    const r=localStorage.getItem("apoReducedMotion")==="1";
+    const h=localStorage.getItem("apoHighContrast")==="1";
+    document.body.classList.toggle("reduced",r);
+    document.body.classList.toggle("highcontrast",h);
+    motion?.classList.toggle("on",r);
+    contrast?.classList.toggle("on",h);
+  }
+  motion?.addEventListener("click",e=>{e.preventDefault();localStorage.setItem("apoReducedMotion",localStorage.getItem("apoReducedMotion")==="1"?"0":"1");applyAppearance()});
+  contrast?.addEventListener("click",e=>{e.preventDefault();localStorage.setItem("apoHighContrast",localStorage.getItem("apoHighContrast")==="1"?"0":"1");applyAppearance()});
+  applyAppearance();
+
+  // Local invite link display works even before Firebase.
+  const invite=(location.protocol==="http:"||location.protocol==="https:")
+    ? location.origin+location.pathname+"?join=apo"
+    : "https://apo-official.github.io/apo-official/?join=apo";
+  if(byId("inviteUrlText"))byId("inviteUrlText").textContent=invite;
+  byId("copyInviteBtn")?.addEventListener("click",async e=>{
+    e.preventDefault();
+    try{await navigator.clipboard.writeText(invite);if(byId("inviteStatus"))byId("inviteStatus").textContent="Invite link copied."}
+    catch{prompt("Copy this APO invite link:",invite)}
+  });
+
+  // Show useful state when Firebase isn't available instead of dead buttons.
+  window.addEventListener("load",()=>{
+    setTimeout(()=>{
+      const chip=byId("connectionChip");
+      if(chip && chip.textContent==="Connecting…"){
+        chip.textContent=(location.protocol==="file:")?"UI ready • online features need hosted HTTPS":"UI ready • connecting community…";
+      }
+    },1800);
+  });
+
+  window.APO_UI={openPage};
+  openPage("home");
+})();
+</script>
+
 <script type="module">
 
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
@@ -716,8 +843,7 @@ function renderGroups(){
 async function inviteFriendToGroup(g){
  const choices=[...friendMap.values()].filter(f=>!(g.members||[]).includes(f.id)&&!blockedIds.has(f.id));
  if(!choices.length)return alert("No friends are available to invite.");
- const names=choices.map((f,i)=>`${i+1}. ${f.name}`).join("
-");
+ const names=choices.map((f,i)=>`${i+1}. ${f.name}`).join("\n");
  const pick=prompt(`Invite which friend?
 
 ${names}
@@ -1000,5 +1126,20 @@ showPage("home");
   apply();
 })();
 </script>
+
+<div id="runtimeBanner" style="display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:300;padding:12px 14px;border:1px solid rgba(255,182,46,.25);border-radius:14px;background:#121820;color:#dbe2ea;font-size:13px;box-shadow:0 18px 50px rgba(0,0,0,.35)">
+  APO interface is working, but online community features could not connect. Open the hosted HTTPS version for Firebase, uploads, microphone and calls.
+</div>
+<script>
+window.addEventListener("unhandledrejection",e=>{
+  console.error("APO runtime error:",e.reason);
+  const b=document.getElementById("runtimeBanner");
+  if(b && location.protocol==="file:") b.style.display="block";
+});
+window.addEventListener("error",e=>{
+  console.error("APO script error:",e.error||e.message);
+});
+</script>
+
 </body>
 </html>
